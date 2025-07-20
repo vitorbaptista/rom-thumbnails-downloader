@@ -377,20 +377,29 @@ class TestCSVLoading:
 class TestROMDiscovery:
     @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_single_console(self, mock_glob):
+        # Mock console directory
+        mock_console_dir = MagicMock()
+        mock_console_dir.name = "genesis"
+        mock_console_dir.is_dir.return_value = True
+
         # Mock ROM files
         mock_rom1 = MagicMock()
-        mock_rom1.parent.name = "genesis"
         mock_rom1.name = "Sonic (USA).bin"
         mock_rom1.absolute.return_value = Path("/roms/genesis/Sonic (USA).bin")
+        mock_rom1.is_file.return_value = True
 
         mock_rom2 = MagicMock()
-        mock_rom2.parent.name = "genesis"
         mock_rom2.name = "Street Fighter (Europe).bin"
         mock_rom2.absolute.return_value = Path(
             "/roms/genesis/Street Fighter (Europe).bin"
         )
+        mock_rom2.is_file.return_value = True
 
-        mock_glob.return_value = [mock_rom1, mock_rom2]
+        # Configure console directory's glob method to return ROM files
+        mock_console_dir.glob.return_value = [mock_rom1, mock_rom2]
+
+        # Configure mock_glob to return console directories on first call
+        mock_glob.return_value = [mock_console_dir]
 
         result = discover_roms(Path("/roms"))
 
@@ -404,17 +413,32 @@ class TestROMDiscovery:
 
     @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_multiple_consoles(self, mock_glob):
+        # Mock console directories
+        mock_nes_dir = MagicMock()
+        mock_nes_dir.name = "nes"
+        mock_nes_dir.is_dir.return_value = True
+
+        mock_snes_dir = MagicMock()
+        mock_snes_dir.name = "snes"
+        mock_snes_dir.is_dir.return_value = True
+
+        # Mock ROM files
         mock_rom1 = MagicMock()
-        mock_rom1.parent.name = "nes"
         mock_rom1.name = "Mario Bros.nes"
         mock_rom1.absolute.return_value = Path("/roms/nes/Mario Bros.nes")
+        mock_rom1.is_file.return_value = True
 
         mock_rom2 = MagicMock()
-        mock_rom2.parent.name = "snes"
         mock_rom2.name = "Super Mario World (USA).sfc"
         mock_rom2.absolute.return_value = Path("/roms/snes/Super Mario World (USA).sfc")
+        mock_rom2.is_file.return_value = True
 
-        mock_glob.return_value = [mock_rom1, mock_rom2]
+        # Configure each console directory's glob method to return its ROM files
+        mock_nes_dir.glob.return_value = [mock_rom1]
+        mock_snes_dir.glob.return_value = [mock_rom2]
+
+        # Configure mock_glob to return console directories
+        mock_glob.return_value = [mock_nes_dir, mock_snes_dir]
 
         result = discover_roms(Path("/roms"))
 
@@ -430,17 +454,27 @@ class TestROMDiscovery:
 
     @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_handles_duplicate_clean_names(self, mock_glob):
+        # Mock console directory
+        mock_console_dir = MagicMock()
+        mock_console_dir.name = "genesis"
+        mock_console_dir.is_dir.return_value = True
+
+        # Mock ROM files with same clean name
         mock_rom1 = MagicMock()
-        mock_rom1.parent.name = "genesis"
         mock_rom1.name = "Game (USA).bin"
         mock_rom1.absolute.return_value = Path("/roms/genesis/Game (USA).bin")
+        mock_rom1.is_file.return_value = True
 
         mock_rom2 = MagicMock()
-        mock_rom2.parent.name = "genesis"
         mock_rom2.name = "Game (Europe).bin"
         mock_rom2.absolute.return_value = Path("/roms/genesis/Game (Europe).bin")
+        mock_rom2.is_file.return_value = True
 
-        mock_glob.return_value = [mock_rom1, mock_rom2]
+        # Configure console directory's glob method to return ROM files
+        mock_console_dir.glob.return_value = [mock_rom1, mock_rom2]
+
+        # Configure mock_glob to return console directories
+        mock_glob.return_value = [mock_console_dir]
 
         with patch("builtins.print") as mock_print:
             result = discover_roms(Path("/roms"))
@@ -466,8 +500,13 @@ class TestROMDiscovery:
 
     @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_filters_files_only(self, mock_glob):
+        # Mock console directory
+        mock_console_dir = MagicMock()
+        mock_console_dir.name = "nes"
+        mock_console_dir.is_dir.return_value = True
+
+        # Mock ROM file and subdirectory inside console dir
         mock_rom = MagicMock()
-        mock_rom.parent.name = "nes"
         mock_rom.name = "Game.nes"
         mock_rom.absolute.return_value = Path("/roms/nes/Game.nes")
         mock_rom.is_file.return_value = True
@@ -475,7 +514,11 @@ class TestROMDiscovery:
         mock_dir = MagicMock()
         mock_dir.is_file.return_value = False
 
-        mock_glob.return_value = [mock_rom, mock_dir]
+        # Configure console directory's glob method to return both file and directory
+        mock_console_dir.glob.return_value = [mock_rom, mock_dir]
+
+        # Configure mock_glob to return console directories
+        mock_glob.return_value = [mock_console_dir]
 
         result = discover_roms(Path("/roms"))
 

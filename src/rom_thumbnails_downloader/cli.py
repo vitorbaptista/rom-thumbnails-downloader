@@ -384,42 +384,44 @@ def discover_roms(rom_root: Path) -> Dict[str, Dict[str, Path]]:
     """
     rom_map = defaultdict(dict)
 
-    # Find all files in console subdirectories (one level deep)
-    rom_files = list(rom_root.glob("*/*"))
+    # First, get all console directories and filter by mapping
+    console_dirs = [d for d in rom_root.glob("*") if d.is_dir()]
 
-    for rom_file in rom_files:
-        # Only process files, not directories
-        if not rom_file.is_file():
-            continue
+    for console_dir in console_dirs:
+        raw_console_name = console_dir.name
 
-        raw_console_name = rom_file.parent.name
-        # Map the raw console name to the CSV console name
-        console_name = CONSOLE_MAPPING.get(raw_console_name, raw_console_name)
-
-        clean_name = clean_title(rom_file.name)
-
-        # Skip files that result in empty clean names
-        if not clean_name:
-            continue
-
-        # Check for duplicate ROM entries
-        if clean_name in rom_map[console_name]:
-            print(
-                f"Warning: Duplicate ROM found for '{clean_name}' in console '{console_name}'. "
-                f"Keeping first entry: {rom_map[console_name][clean_name]}",
-                file=sys.stderr,
-            )
-            continue
-
-        # Warn if console mapping was not found
+        # Warn once per unmapped console directory and skip it
         if raw_console_name not in CONSOLE_MAPPING:
             print(
                 f"Warning: No console mapping found for ROM folder '{raw_console_name}'. "
-                f"Using original name '{raw_console_name}' for matching.",
+                f"Skipping directory.",
                 file=sys.stderr,
             )
+            continue
 
-        rom_map[console_name][clean_name] = rom_file.absolute()
+        # Map the raw console name to the CSV console name
+        console_name = CONSOLE_MAPPING[raw_console_name]
+
+        # Process all files in this mapped console directory
+        rom_files = [f for f in console_dir.glob("*") if f.is_file()]
+
+        for rom_file in rom_files:
+            clean_name = clean_title(rom_file.name)
+
+            # Skip files that result in empty clean names
+            if not clean_name:
+                continue
+
+            # Check for duplicate ROM entries
+            if clean_name in rom_map[console_name]:
+                print(
+                    f"Warning: Duplicate ROM found for '{clean_name}' in console '{console_name}'. "
+                    f"Keeping first entry: {rom_map[console_name][clean_name]}",
+                    file=sys.stderr,
+                )
+                continue
+
+            rom_map[console_name][clean_name] = rom_file.absolute()
 
     # Only return consoles that have at least one ROM
     return {console: roms for console, roms in rom_map.items() if roms}
