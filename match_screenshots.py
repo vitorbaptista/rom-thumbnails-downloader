@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Generator
 from collections import defaultdict
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 import sys
 from tqdm import tqdm
 
@@ -241,8 +241,9 @@ def generate_wget_commands(image_map: Dict[str, Dict[str, str]],
             if dest_path.exists():
                 continue
             
-            # Generate wget command
-            yield f"wget {image_url} -O {dest_path}"
+            # Generate wget command with URL encoding and quoted path for whitespace handling
+            encoded_url = quote(image_url, safe=':/?#[]@!$&\'()*+,;=')
+            yield f'wget "{encoded_url}" -O "{dest_path}"'
 
 
 def main() -> None:
@@ -277,10 +278,8 @@ def main() -> None:
     print(f"Found {len(commands)} images to download:")
     
     # Display progress bar while printing commands
-    with tqdm(total=len(commands), desc="Processing commands") as pbar:
-        for command in commands:
-            print(command)
-            pbar.update(1)
+    for command in tqdm(commands, desc="Processing commands"):
+        print(command)
 
 
 if __name__ == "__main__":

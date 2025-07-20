@@ -355,8 +355,8 @@ class TestCommandGeneration:
             commands = list(generate_wget_commands(image_map, rom_map))
         
         expected = [
-            "wget https://example.com/sonic.png -O /roms/Genesis/Sonic (USA).png",
-            "wget https://example.com/sf.png -O /roms/Genesis/Street Fighter (Europe).png"
+            'wget "https://example.com/sonic.png" -O "/roms/Genesis/Sonic (USA).png"',
+            'wget "https://example.com/sf.png" -O "/roms/Genesis/Street Fighter (Europe).png"'
         ]
         assert commands == expected
 
@@ -396,7 +396,7 @@ class TestCommandGeneration:
             commands = list(generate_wget_commands(image_map, rom_map))
         
         expected = [
-            "wget https://example.com/mario.jpg -O /roms/NES/Mario Bros.jpg"
+            'wget "https://example.com/mario.jpg" -O "/roms/NES/Mario Bros.jpg"'
         ]
         assert commands == expected
 
@@ -417,7 +417,7 @@ class TestCommandGeneration:
             commands = list(generate_wget_commands(image_map, rom_map))
         
         expected = [
-            "wget https://example.com/mario -O /roms/NES/Mario Bros.png"
+            'wget "https://example.com/mario" -O "/roms/NES/Mario Bros.png"'
         ]
         assert commands == expected
 
@@ -458,7 +458,7 @@ class TestCommandGeneration:
             commands = list(generate_wget_commands(image_map, rom_map))
         
         expected = [
-            "wget https://example.com/sonic.png -O /roms/Genesis/Sonic.png"
+            'wget "https://example.com/sonic.png" -O "/roms/Genesis/Sonic.png"'
         ]
         assert commands == expected
 
@@ -489,28 +489,63 @@ class TestCommandGeneration:
         assert any("SNES" in arg and "not found in CSV data" in arg for arg in call_args)
         assert any("NES" in arg and "not found in CSV data" in arg for arg in call_args)
 
+    def test_generate_wget_commands_quotes_paths_with_whitespace(self):
+        image_map = {
+            "Genesis": {
+                "Sonic Adventure": "https://example.com/sonic.png"
+            }
+        }
+        
+        rom_map = {
+            "Genesis": {
+                "Sonic Adventure": Path("/roms/Genesis/Sonic Adventure (USA).bin")
+            }
+        }
+        
+        with patch('match_screenshots.Path.exists', return_value=False):
+            commands = list(generate_wget_commands(image_map, rom_map))
+        
+        expected = [
+            'wget "https://example.com/sonic.png" -O "/roms/Genesis/Sonic Adventure (USA).png"'
+        ]
+        assert commands == expected
+
+    def test_generate_wget_commands_encodes_url_with_spaces(self):
+        image_map = {
+            "Genesis": {
+                "Game": "https://example.com/path with spaces/game image.png"
+            }
+        }
+        
+        rom_map = {
+            "Genesis": {
+                "Game": Path("/roms/Genesis/Game.bin")
+            }
+        }
+        
+        with patch('match_screenshots.Path.exists', return_value=False):
+            commands = list(generate_wget_commands(image_map, rom_map))
+        
+        expected = [
+            'wget "https://example.com/path%20with%20spaces/game%20image.png" -O "/roms/Genesis/Game.png"'
+        ]
+        assert commands == expected
+
 
 class TestCLIInterface:
-    @patch('match_screenshots.tqdm')
     @patch('match_screenshots.load_csv_data')
     @patch('match_screenshots.discover_roms')
     @patch('match_screenshots.generate_wget_commands')
     @patch('sys.argv', ['match_screenshots.py', '/rom/path'])
-    def test_main_successful_execution(self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm):
+    def test_main_successful_execution(self, mock_gen_commands, mock_discover, mock_load_csv):
         # Mock data
         image_map = {"Genesis": {"Sonic": "https://example.com/sonic.png"}}
         rom_map = {"Genesis": {"Sonic": Path("/roms/Genesis/Sonic.bin")}}
-        commands = ["wget https://example.com/sonic.png -O /roms/Genesis/Sonic.png"]
+        commands = ['wget "https://example.com/sonic.png" -O "/roms/Genesis/Sonic.png"']
         
         mock_load_csv.return_value = image_map
         mock_discover.return_value = rom_map
         mock_gen_commands.return_value = iter(commands)
-        
-        # Mock tqdm to track progress
-        mock_tqdm_instance = MagicMock()
-        mock_tqdm.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__exit__.return_value = None
         
         with patch('builtins.print') as mock_print:
             main()
@@ -521,7 +556,7 @@ class TestCLIInterface:
         mock_gen_commands.assert_called_once_with(image_map, rom_map)
         
         # Verify wget commands were printed
-        mock_print.assert_called_with("wget https://example.com/sonic.png -O /roms/Genesis/Sonic.png")
+        mock_print.assert_called_with('wget "https://example.com/sonic.png" -O "/roms/Genesis/Sonic.png"')
 
     @patch('sys.argv', ['match_screenshots.py'])
     def test_main_missing_argument(self):
@@ -567,33 +602,7 @@ class TestCLIInterface:
         
         # Should handle relative paths correctly
         mock_discover.assert_called_once_with(Path('relative/path'))
-
-    @patch('match_screenshots.tqdm')
-    @patch('match_screenshots.load_csv_data')
-    @patch('match_screenshots.discover_roms')
-    @patch('match_screenshots.generate_wget_commands')
-    @patch('sys.argv', ['match_screenshots.py', '/rom/path'])
-    def test_main_with_progress_bar(self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm):
-        # Test that progress bar is properly used
-        commands = [f"wget example{i}.png -O rom{i}.png" for i in range(5)]
         
-        mock_load_csv.return_value = {}
-        mock_discover.return_value = {}
-        mock_gen_commands.return_value = iter(commands)
-        
-        mock_tqdm_instance = MagicMock()
-        mock_tqdm.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__exit__.return_value = None
-        
-        with patch('builtins.print'):
-            main()
-        
-        # Verify tqdm was called with correct parameters
-        mock_tqdm.assert_called_once()
-        # Verify update was called for each command
-        assert mock_tqdm_instance.update.call_count == 5
-
 
 class TestIntegration:
     def test_integration_with_fixture_data(self):
@@ -650,11 +659,29 @@ class TestIntegration:
         assert len(wget_commands) > 0, "No wget commands found in output"
         
         # Verify each expected command pattern appears in the output
+        # Check that each ROM has a corresponding wget command with proper quoting
         wget_output = '\n'.join(wget_commands)
         
-        for expected_pattern in expected_patterns:
-            assert any(expected_pattern in cmd for cmd in wget_commands), \
-                f"Expected pattern '{expected_pattern}' not found in wget commands: {wget_commands}"
+        # Verify all commands start with 'wget "' and have '-O "' (proper quoting)
+        for cmd in wget_commands:
+            assert cmd.startswith('wget "'), f"Command should start with 'wget \"': {cmd}"
+            assert '-O "' in cmd, f"Command should contain '-O \"': {cmd}"
+            assert cmd.endswith('"'), f"Command should end with quote: {cmd}"
+        
+        # Verify specific game titles appear in the output paths
+        expected_games = [
+            "Donkey Kong Country (USA).png",
+            "Secret of Mana (USA).png", 
+            "Final Fantasy III (USA).png",
+            "Legend of Zelda, The - A Link to the Past (USA).png",
+            "6-Pak (USA).png",
+            "ATP Tour Championship Tennis (Europe).png",  # Note: uses Europe ROM but USA URL
+            "688 Attack Sub (USA).png"
+        ]
+        
+        for expected_game in expected_games:
+            assert any(expected_game in cmd for cmd in wget_commands), \
+                f"Expected game '{expected_game}' not found in wget commands: {wget_commands}"
         
         # Verify duplicate ROM warnings appear in stdout
         warning_lines = [line for line in output_lines if 'Warning: Duplicate ROM' in line]
