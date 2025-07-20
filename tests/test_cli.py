@@ -1,8 +1,14 @@
 import pytest
-import sys
 from pathlib import Path
 from unittest.mock import patch, mock_open, MagicMock
-from rom_thumbnails_downloader.cli import clean_title, apply_region_preference, load_csv_data, discover_roms, generate_wget_commands, main
+from rom_thumbnails_downloader.cli import (
+    clean_title,
+    apply_region_preference,
+    load_csv_data,
+    discover_roms,
+    generate_wget_commands,
+    main,
+)
 
 
 class TestTitleCleaning:
@@ -103,182 +109,172 @@ class TestRegionPreference:
 
 
 class TestCSVLoading:
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
+    @patch("builtins.open", new_callable=mock_open)
     def test_load_csv_data_single_file(self, mock_file, mock_glob):
         # Mock CSV content
         csv_content = '"Named_Boxarts","Game Title (USA)","https://example.com/game.png"\n"Snapshots","Other Title","https://example.com/other.png"'
         mock_file.return_value.read.return_value = csv_content
-        
+
         # Mock glob to return one CSV file
         mock_csv_path = MagicMock()
         mock_csv_path.stem = "Console_Name"
         mock_glob.return_value = [mock_csv_path]
-        
+
         result = load_csv_data(Path("/fake/data/processed/consoles"))
-        
-        expected = {
-            "Console_Name": {
-                "Game Title": "https://example.com/game.png"
-            }
-        }
+
+        expected = {"Console_Name": {"Game Title": "https://example.com/game.png"}}
         assert result == expected
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
+    @patch("builtins.open", new_callable=mock_open)
     def test_load_csv_data_filters_named_boxarts_only(self, mock_file, mock_glob):
         csv_content = '"Named_Boxarts","Game (USA)","https://example.com/game.png"\n"Snapshots","Game (USA)","https://example.com/snapshot.png"\n"Named_Boxarts","Another Game","https://example.com/another.png"'
         mock_file.return_value.read.return_value = csv_content
-        
+
         mock_csv_path = MagicMock()
         mock_csv_path.stem = "Console"
         mock_glob.return_value = [mock_csv_path]
-        
+
         result = load_csv_data(Path("/fake/data"))
-        
+
         expected = {
             "Console": {
                 "Game": "https://example.com/game.png",
-                "Another Game": "https://example.com/another.png"
+                "Another Game": "https://example.com/another.png",
             }
         }
         assert result == expected
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
+    @patch("builtins.open", new_callable=mock_open)
     def test_load_csv_data_applies_region_preference(self, mock_file, mock_glob):
         csv_content = '"Named_Boxarts","Game (Europe)","https://example.com/game_eur.png"\n"Named_Boxarts","Game (USA)","https://example.com/game_usa.png"\n"Named_Boxarts","Game (World)","https://example.com/game_world.png"'
         mock_file.return_value.read.return_value = csv_content
-        
+
         mock_csv_path = MagicMock()
         mock_csv_path.stem = "Console"
         mock_glob.return_value = [mock_csv_path]
-        
+
         result = load_csv_data(Path("/fake/data"))
-        
-        expected = {
-            "Console": {
-                "Game": "https://example.com/game_usa.png"
-            }
-        }
+
+        expected = {"Console": {"Game": "https://example.com/game_usa.png"}}
         assert result == expected
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
+    @patch("builtins.open", new_callable=mock_open)
     def test_load_csv_data_multiple_consoles(self, mock_file, mock_glob):
         csv_content = '"Named_Boxarts","Game Title","https://example.com/game.png"'
         mock_file.return_value.read.return_value = csv_content
-        
+
         console1 = MagicMock()
         console1.stem = "Console1"
         console2 = MagicMock()
         console2.stem = "Console2"
         mock_glob.return_value = [console1, console2]
-        
+
         result = load_csv_data(Path("/fake/data"))
-        
+
         expected = {
-            "Console1": {
-                "Game Title": "https://example.com/game.png"
-            },
-            "Console2": {
-                "Game Title": "https://example.com/game.png"
-            }
+            "Console1": {"Game Title": "https://example.com/game.png"},
+            "Console2": {"Game Title": "https://example.com/game.png"},
         }
         assert result == expected
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_load_csv_data_no_csv_files(self, mock_glob):
         mock_glob.return_value = []
-        
+
         result = load_csv_data(Path("/fake/data"))
-        
+
         assert result == {}
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
+    @patch("builtins.open", new_callable=mock_open)
     def test_load_csv_data_empty_csv_file(self, mock_file, mock_glob):
         mock_file.return_value.read.return_value = ""
-        
+
         mock_csv_path = MagicMock()
         mock_csv_path.stem = "Console"
         mock_glob.return_value = [mock_csv_path]
-        
+
         result = load_csv_data(Path("/fake/data"))
-        
+
         expected = {"Console": {}}
         assert result == expected
 
 
 class TestROMDiscovery:
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_single_console(self, mock_glob):
         # Mock ROM files
         mock_rom1 = MagicMock()
         mock_rom1.parent.name = "genesis"
         mock_rom1.name = "Sonic (USA).bin"
         mock_rom1.absolute.return_value = Path("/roms/genesis/Sonic (USA).bin")
-        
+
         mock_rom2 = MagicMock()
         mock_rom2.parent.name = "genesis"
         mock_rom2.name = "Street Fighter (Europe).bin"
-        mock_rom2.absolute.return_value = Path("/roms/genesis/Street Fighter (Europe).bin")
-        
+        mock_rom2.absolute.return_value = Path(
+            "/roms/genesis/Street Fighter (Europe).bin"
+        )
+
         mock_glob.return_value = [mock_rom1, mock_rom2]
-        
+
         result = discover_roms(Path("/roms"))
-        
+
         expected = {
             "Sega_-_Mega_Drive_-_Genesis": {
                 "Sonic": Path("/roms/genesis/Sonic (USA).bin"),
-                "Street Fighter": Path("/roms/genesis/Street Fighter (Europe).bin")
+                "Street Fighter": Path("/roms/genesis/Street Fighter (Europe).bin"),
             }
         }
         assert result == expected
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_multiple_consoles(self, mock_glob):
         mock_rom1 = MagicMock()
         mock_rom1.parent.name = "nes"
         mock_rom1.name = "Mario Bros.nes"
         mock_rom1.absolute.return_value = Path("/roms/nes/Mario Bros.nes")
-        
+
         mock_rom2 = MagicMock()
         mock_rom2.parent.name = "snes"
         mock_rom2.name = "Super Mario World (USA).sfc"
         mock_rom2.absolute.return_value = Path("/roms/snes/Super Mario World (USA).sfc")
-        
+
         mock_glob.return_value = [mock_rom1, mock_rom2]
-        
+
         result = discover_roms(Path("/roms"))
-        
+
         expected = {
             "Nintendo_-_Nintendo_Entertainment_System": {
                 "Mario Bros": Path("/roms/nes/Mario Bros.nes")
             },
             "Nintendo_-_Super_Nintendo_Entertainment_System": {
                 "Super Mario World": Path("/roms/snes/Super Mario World (USA).sfc")
-            }
+            },
         }
         assert result == expected
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_handles_duplicate_clean_names(self, mock_glob):
         mock_rom1 = MagicMock()
         mock_rom1.parent.name = "genesis"
         mock_rom1.name = "Game (USA).bin"
         mock_rom1.absolute.return_value = Path("/roms/genesis/Game (USA).bin")
-        
+
         mock_rom2 = MagicMock()
         mock_rom2.parent.name = "genesis"
         mock_rom2.name = "Game (Europe).bin"
         mock_rom2.absolute.return_value = Path("/roms/genesis/Game (Europe).bin")
-        
+
         mock_glob.return_value = [mock_rom1, mock_rom2]
-        
-        with patch('builtins.print') as mock_print:
+
+        with patch("builtins.print") as mock_print:
             result = discover_roms(Path("/roms"))
-        
+
         # Should keep the first one and warn about the duplicate
         expected = {
             "Sega_-_Mega_Drive_-_Genesis": {
@@ -290,29 +286,29 @@ class TestROMDiscovery:
         mock_print.assert_called_once()
         assert "Warning: Duplicate ROM" in str(mock_print.call_args)
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_no_roms_found(self, mock_glob):
         mock_glob.return_value = []
-        
+
         result = discover_roms(Path("/empty"))
-        
+
         assert result == {}
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_filters_files_only(self, mock_glob):
         mock_rom = MagicMock()
         mock_rom.parent.name = "nes"
         mock_rom.name = "Game.nes"
         mock_rom.absolute.return_value = Path("/roms/nes/Game.nes")
         mock_rom.is_file.return_value = True
-        
+
         mock_dir = MagicMock()
         mock_dir.is_file.return_value = False
-        
+
         mock_glob.return_value = [mock_rom, mock_dir]
-        
+
         result = discover_roms(Path("/roms"))
-        
+
         expected = {
             "Nintendo_-_Nintendo_Entertainment_System": {
                 "Game": Path("/roms/nes/Game.nes")
@@ -320,18 +316,18 @@ class TestROMDiscovery:
         }
         assert result == expected
 
-    @patch('rom_thumbnails_downloader.cli.Path.glob')
+    @patch("rom_thumbnails_downloader.cli.Path.glob")
     def test_discover_roms_empty_clean_name_ignored(self, mock_glob):
         mock_rom = MagicMock()
         mock_rom.parent.name = "nes"
         mock_rom.name = "().nes"  # This will result in empty clean name
         mock_rom.absolute.return_value = Path("/roms/nes/().nes")
         mock_rom.is_file.return_value = True
-        
+
         mock_glob.return_value = [mock_rom]
-        
+
         result = discover_roms(Path("/roms"))
-        
+
         expected = {}
         assert result == expected
 
@@ -341,43 +337,41 @@ class TestCommandGeneration:
         image_map = {
             "Sega_-_Mega_Drive_-_Genesis": {
                 "Sonic": "https://example.com/sonic.png",
-                "Street Fighter": "https://example.com/sf.png"
+                "Street Fighter": "https://example.com/sf.png",
             }
         }
-        
+
         rom_map = {
             "Sega_-_Mega_Drive_-_Genesis": {
                 "Sonic": Path("/roms/genesis/Sonic (USA).bin"),
-                "Street Fighter": Path("/roms/genesis/Street Fighter (Europe).bin")
+                "Street Fighter": Path("/roms/genesis/Street Fighter (Europe).bin"),
             }
         }
-        
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=False):
+
+        with patch("rom_thumbnails_downloader.cli.Path.exists", return_value=False):
             commands = list(generate_wget_commands(image_map, rom_map))
-        
+
         expected = [
             'wget "https://example.com/sonic.png" -O "/roms/genesis/Sonic (USA).png"',
-            'wget "https://example.com/sf.png" -O "/roms/genesis/Street Fighter (Europe).png"'
+            'wget "https://example.com/sf.png" -O "/roms/genesis/Street Fighter (Europe).png"',
         ]
         assert commands == expected
 
     def test_generate_wget_commands_skips_existing_files(self):
         image_map = {
-            "Sega_-_Mega_Drive_-_Genesis": {
-                "Sonic": "https://example.com/sonic.png"
-            }
+            "Sega_-_Mega_Drive_-_Genesis": {"Sonic": "https://example.com/sonic.png"}
         }
-        
+
         rom_map = {
             "Sega_-_Mega_Drive_-_Genesis": {
                 "Sonic": Path("/roms/genesis/Sonic (USA).bin")
             }
         }
-        
+
         # Mock that the destination file already exists
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=True):
+        with patch("rom_thumbnails_downloader.cli.Path.exists", return_value=True):
             commands = list(generate_wget_commands(image_map, rom_map))
-        
+
         assert commands == []
 
     def test_generate_wget_commands_extracts_extension_from_url(self):
@@ -386,16 +380,16 @@ class TestCommandGeneration:
                 "Mario": "https://example.com/mario.jpg"
             }
         }
-        
+
         rom_map = {
             "Nintendo_-_Nintendo_Entertainment_System": {
                 "Mario": Path("/roms/nes/Mario Bros.nes")
             }
         }
-        
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=False):
+
+        with patch("rom_thumbnails_downloader.cli.Path.exists", return_value=False):
             commands = list(generate_wget_commands(image_map, rom_map))
-        
+
         expected = [
             'wget "https://example.com/mario.jpg" -O "/roms/nes/Mario Bros.jpg"'
         ]
@@ -407,88 +401,89 @@ class TestCommandGeneration:
                 "Mario": "https://example.com/mario"  # No extension
             }
         }
-        
+
         rom_map = {
             "Nintendo_-_Nintendo_Entertainment_System": {
                 "Mario": Path("/roms/nes/Mario Bros.nes")
             }
         }
-        
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=False):
+
+        with patch("rom_thumbnails_downloader.cli.Path.exists", return_value=False):
             commands = list(generate_wget_commands(image_map, rom_map))
-        
-        expected = [
-            'wget "https://example.com/mario" -O "/roms/nes/Mario Bros.png"'
-        ]
+
+        expected = ['wget "https://example.com/mario" -O "/roms/nes/Mario Bros.png"']
         assert commands == expected
 
     def test_generate_wget_commands_console_mismatch(self):
         image_map = {
-            "Sega_-_Mega_Drive_-_Genesis": {
-                "Sonic": "https://example.com/sonic.png"
-            }
+            "Sega_-_Mega_Drive_-_Genesis": {"Sonic": "https://example.com/sonic.png"}
         }
-        
+
         rom_map = {
             "Nintendo_-_Super_Nintendo_Entertainment_System": {
                 "Mario": Path("/roms/snes/Mario.sfc")
             }
         }
-        
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=False):
+
+        with patch("rom_thumbnails_downloader.cli.Path.exists", return_value=False):
             commands = list(generate_wget_commands(image_map, rom_map))
-        
+
         assert commands == []
 
     def test_generate_wget_commands_partial_game_matches(self):
         image_map = {
             "Sega_-_Mega_Drive_-_Genesis": {
                 "Sonic": "https://example.com/sonic.png",
-                "Streets of Rage": "https://example.com/sor.png"
+                "Streets of Rage": "https://example.com/sor.png",
             }
         }
-        
+
         rom_map = {
             "Sega_-_Mega_Drive_-_Genesis": {
                 "Sonic": Path("/roms/genesis/Sonic.bin"),
-                "Altered Beast": Path("/roms/genesis/Altered Beast.bin")
+                "Altered Beast": Path("/roms/genesis/Altered Beast.bin"),
             }
         }
-        
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=False):
+
+        with patch("rom_thumbnails_downloader.cli.Path.exists", return_value=False):
             commands = list(generate_wget_commands(image_map, rom_map))
-        
-        expected = [
-            'wget "https://example.com/sonic.png" -O "/roms/genesis/Sonic.png"'
-        ]
+
+        expected = ['wget "https://example.com/sonic.png" -O "/roms/genesis/Sonic.png"']
         assert commands == expected
 
     def test_generate_wget_commands_warns_missing_console(self):
         image_map = {
-            "Sega_-_Mega_Drive_-_Genesis": {
-                "Sonic": "https://example.com/sonic.png"
-            }
+            "Sega_-_Mega_Drive_-_Genesis": {"Sonic": "https://example.com/sonic.png"}
         }
-        
+
         rom_map = {
             "Nintendo_-_Super_Nintendo_Entertainment_System": {
                 "Mario": Path("/roms/snes/Mario.sfc")
             },
             "Nintendo_-_Nintendo_Entertainment_System": {
                 "Zelda": Path("/roms/nes/Zelda.nes")
-            }
+            },
         }
-        
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=False), \
-             patch('builtins.print') as mock_print:
+
+        with patch(
+            "rom_thumbnails_downloader.cli.Path.exists", return_value=False
+        ), patch("builtins.print") as mock_print:
             commands = list(generate_wget_commands(image_map, rom_map))
-        
+
         assert commands == []
         # Should warn about missing consoles
         assert mock_print.call_count == 2
         call_args = [str(call) for call in mock_print.call_args_list]
-        assert any("Nintendo_-_Super_Nintendo_Entertainment_System" in arg and "not found in CSV data" in arg for arg in call_args)
-        assert any("Nintendo_-_Nintendo_Entertainment_System" in arg and "not found in CSV data" in arg for arg in call_args)
+        assert any(
+            "Nintendo_-_Super_Nintendo_Entertainment_System" in arg
+            and "not found in CSV data" in arg
+            for arg in call_args
+        )
+        assert any(
+            "Nintendo_-_Nintendo_Entertainment_System" in arg
+            and "not found in CSV data" in arg
+            for arg in call_args
+        )
 
     def test_generate_wget_commands_quotes_paths_with_whitespace(self):
         image_map = {
@@ -496,16 +491,16 @@ class TestCommandGeneration:
                 "Sonic Adventure": "https://example.com/sonic.png"
             }
         }
-        
+
         rom_map = {
             "Sega_-_Mega_Drive_-_Genesis": {
                 "Sonic Adventure": Path("/roms/genesis/Sonic Adventure (USA).bin")
             }
         }
-        
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=False):
+
+        with patch("rom_thumbnails_downloader.cli.Path.exists", return_value=False):
             commands = list(generate_wget_commands(image_map, rom_map))
-        
+
         expected = [
             'wget "https://example.com/sonic.png" -O "/roms/genesis/Sonic Adventure (USA).png"'
         ]
@@ -517,16 +512,14 @@ class TestCommandGeneration:
                 "Game": "https://example.com/path with spaces/game image.png"
             }
         }
-        
+
         rom_map = {
-            "Sega_-_Mega_Drive_-_Genesis": {
-                "Game": Path("/roms/genesis/Game.bin")
-            }
+            "Sega_-_Mega_Drive_-_Genesis": {"Game": Path("/roms/genesis/Game.bin")}
         }
-        
-        with patch('rom_thumbnails_downloader.cli.Path.exists', return_value=False):
+
+        with patch("rom_thumbnails_downloader.cli.Path.exists", return_value=False):
             commands = list(generate_wget_commands(image_map, rom_map))
-        
+
         expected = [
             'wget "https://example.com/path%20with%20spaces/game%20image.png" -O "/roms/genesis/Game.png"'
         ]
@@ -534,177 +527,189 @@ class TestCommandGeneration:
 
 
 class TestCLIInterface:
-    @patch('rom_thumbnails_downloader.cli.load_csv_data')
-    @patch('rom_thumbnails_downloader.cli.discover_roms')
-    @patch('rom_thumbnails_downloader.cli.generate_wget_commands')
-    @patch('sys.argv', ['rom_thumbnails_downloader.cli.py', '/rom/path'])
-    def test_main_successful_execution(self, mock_gen_commands, mock_discover, mock_load_csv):
+    @patch("rom_thumbnails_downloader.cli.load_csv_data")
+    @patch("rom_thumbnails_downloader.cli.discover_roms")
+    @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
+    @patch("sys.argv", ["rom_thumbnails_downloader.cli.py", "/rom/path"])
+    def test_main_successful_execution(
+        self, mock_gen_commands, mock_discover, mock_load_csv
+    ):
         # Mock data
-        image_map = {"Sega_-_Mega_Drive_-_Genesis": {"Sonic": "https://example.com/sonic.png"}}
-        rom_map = {"Sega_-_Mega_Drive_-_Genesis": {"Sonic": Path("/roms/genesis/Sonic.bin")}}
+        image_map = {
+            "Sega_-_Mega_Drive_-_Genesis": {"Sonic": "https://example.com/sonic.png"}
+        }
+        rom_map = {
+            "Sega_-_Mega_Drive_-_Genesis": {"Sonic": Path("/roms/genesis/Sonic.bin")}
+        }
         commands = ['wget "https://example.com/sonic.png" -O "/roms/genesis/Sonic.png"']
-        
+
         mock_load_csv.return_value = image_map
         mock_discover.return_value = rom_map
         mock_gen_commands.return_value = iter(commands)
-        
-        with patch('builtins.print') as mock_print:
+
+        with patch("builtins.print") as mock_print:
             main()
-        
+
         # Verify function calls
         mock_load_csv.assert_called_once()
-        mock_discover.assert_called_once_with(Path('/rom/path'))
+        mock_discover.assert_called_once_with(Path("/rom/path"))
         mock_gen_commands.assert_called_once_with(image_map, rom_map)
-        
-        # Verify wget commands were printed
-        mock_print.assert_called_with('wget "https://example.com/sonic.png" -O "/roms/genesis/Sonic.png"')
 
-    @patch('sys.argv', ['rom_thumbnails_downloader.cli.py'])
+        # Verify wget commands were printed
+        mock_print.assert_called_with(
+            'wget "https://example.com/sonic.png" -O "/roms/genesis/Sonic.png"'
+        )
+
+    @patch("sys.argv", ["rom_thumbnails_downloader.cli.py"])
     def test_main_missing_argument(self):
         with pytest.raises(SystemExit):
             main()
 
-    @patch('rom_thumbnails_downloader.cli.tqdm')
-    @patch('rom_thumbnails_downloader.cli.load_csv_data')
-    @patch('rom_thumbnails_downloader.cli.discover_roms')
-    @patch('rom_thumbnails_downloader.cli.generate_wget_commands')
-    @patch('sys.argv', ['rom_thumbnails_downloader.cli.py', '/nonexistent/path'])
-    def test_main_nonexistent_rom_directory(self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm):
+    @patch("rom_thumbnails_downloader.cli.tqdm")
+    @patch("rom_thumbnails_downloader.cli.load_csv_data")
+    @patch("rom_thumbnails_downloader.cli.discover_roms")
+    @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
+    @patch("sys.argv", ["rom_thumbnails_downloader.cli.py", "/nonexistent/path"])
+    def test_main_nonexistent_rom_directory(
+        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+    ):
         mock_load_csv.return_value = {}
         mock_discover.return_value = {}
         mock_gen_commands.return_value = iter([])
-        
+
         mock_tqdm_instance = MagicMock()
         mock_tqdm.return_value = mock_tqdm_instance
         mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
         mock_tqdm_instance.__exit__.return_value = None
-        
+
         # Should not crash even with nonexistent directory
         main()
-        
-        mock_discover.assert_called_once_with(Path('/nonexistent/path'))
 
-    @patch('rom_thumbnails_downloader.cli.tqdm')
-    @patch('rom_thumbnails_downloader.cli.load_csv_data')
-    @patch('rom_thumbnails_downloader.cli.discover_roms')
-    @patch('rom_thumbnails_downloader.cli.generate_wget_commands')
-    @patch('sys.argv', ['rom_thumbnails_downloader.cli.py', 'relative/path'])
-    def test_main_handles_relative_path(self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm):
+        mock_discover.assert_called_once_with(Path("/nonexistent/path"))
+
+    @patch("rom_thumbnails_downloader.cli.tqdm")
+    @patch("rom_thumbnails_downloader.cli.load_csv_data")
+    @patch("rom_thumbnails_downloader.cli.discover_roms")
+    @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
+    @patch("sys.argv", ["rom_thumbnails_downloader.cli.py", "relative/path"])
+    def test_main_handles_relative_path(
+        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+    ):
         mock_load_csv.return_value = {}
         mock_discover.return_value = {}
         mock_gen_commands.return_value = iter([])
-        
+
         mock_tqdm_instance = MagicMock()
         mock_tqdm.return_value = mock_tqdm_instance
         mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
         mock_tqdm_instance.__exit__.return_value = None
-        
+
         main()
-        
+
         # Should handle relative paths correctly
-        mock_discover.assert_called_once_with(Path('relative/path'))
-        
+        mock_discover.assert_called_once_with(Path("relative/path"))
+
 
 class TestIntegration:
     def test_integration_with_fixture_data(self):
         """
         Integration test using actual fixture ROMs and CSV data.
-        
+
         Test fixtures include:
         - Sega Genesis: 4 ROMs (3 in CSV, 1 not in CSV), 1 existing PNG
         - Nintendo SNES: 5 ROMs (4 in CSV, 1 not in CSV), 1 existing PNG
         """
         from pathlib import Path
         import subprocess
-        import os
-        
-        # Get the absolute path to the fixture directory  
+
+        # Get the absolute path to the fixture directory
         test_dir = Path(__file__).parent  # test file is in tests directory
         project_root = test_dir.parent  # go up to project root
         fixture_path = test_dir / "fixtures" / "roms"
-        
+
         # Run the script with fixture data
         result = subprocess.run(
             [
-                "uv", "run", "python", "-m", "rom_thumbnails_downloader", str(fixture_path)
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "rom_thumbnails_downloader",
+                str(fixture_path),
             ],
             capture_output=True,
             text=True,
-            cwd=project_root  # Run from project root
+            cwd=project_root,  # Run from project root
         )
-        
+
         # Verify the script ran successfully
         assert result.returncode == 0, f"Script failed with stderr: {result.stderr}"
-        
+
         # Split output into lines for analysis
-        output_lines = result.stdout.strip().split('\n')
-        
+        output_lines = result.stdout.strip().split("\n")
+
         # Find lines that contain wget commands
-        wget_commands = [line for line in output_lines if line.startswith('wget')]
-        
-        # Expected wget commands based on our fixture data:
-        # Note: Commands order may vary, so we check for presence rather than exact order
-        expected_patterns = [
-            # SNES ROMs that should have matches (excluding Super Mario World which has existing PNG)
-            "Donkey Kong Country (USA) (Rev 1).png",
-            "Secret of Mana (USA) (Virtual Console).png",
-            "Final Fantasy III (USA) (Beta).png", 
-            "Legend of Zelda, The - A Link to the Past (USA).png",
-            
-            # Genesis ROMs that should have matches (excluding 3 Ninjas which has existing PNG)
-            "6-Pak (USA).png",
-            "ATP Tour Championship Tennis (USA).png",  # Uses USA preference over Europe
-            "688 Attack Sub (USA).png"
-        ]
-        
+        wget_commands = [line for line in output_lines if line.startswith("wget")]
+
         # Verify we got some wget commands
         assert len(wget_commands) > 0, "No wget commands found in output"
-        
-        # Verify each expected command pattern appears in the output
-        # Check that each ROM has a corresponding wget command with proper quoting
-        wget_output = '\n'.join(wget_commands)
-        
+
         # Verify all commands start with 'wget "' and have '-O "' (proper quoting)
         for cmd in wget_commands:
-            assert cmd.startswith('wget "'), f"Command should start with 'wget \"': {cmd}"
+            assert cmd.startswith(
+                'wget "'
+            ), f"Command should start with 'wget \"': {cmd}"
             assert '-O "' in cmd, f"Command should contain '-O \"': {cmd}"
             assert cmd.endswith('"'), f"Command should end with quote: {cmd}"
-        
+
         # Verify specific game titles appear in the output paths
         # Only check for Genesis games since SNES CSV data is not present in test data
         expected_games = [
             "6-Pak (USA).png",
             "ATP Tour Championship Tennis (Europe).png",  # Note: uses Europe ROM but USA URL
-            "688 Attack Sub (USA).png"
+            "688 Attack Sub (USA).png",
         ]
-        
+
         for expected_game in expected_games:
-            assert any(expected_game in cmd for cmd in wget_commands), \
-                f"Expected game '{expected_game}' not found in wget commands: {wget_commands}"
-        
+            assert any(
+                expected_game in cmd for cmd in wget_commands
+            ), f"Expected game '{expected_game}' not found in wget commands: {wget_commands}"
+
         # Verify duplicate ROM warnings appear in stdout
-        warning_lines = [line for line in output_lines if 'Warning: Duplicate ROM' in line]
-        
+        warning_lines = [
+            line for line in output_lines if "Warning: Duplicate ROM" in line
+        ]
+
         # Should have warnings for the duplicate ROMs (ROMs with same clean names as existing PNGs)
-        assert len(warning_lines) >= 1, f"Expected duplicate ROM warnings, got output: {result.stdout}"
-        
+        assert (
+            len(warning_lines) >= 1
+        ), f"Expected duplicate ROM warnings, got output: {result.stdout}"
+
         # Verify the script reports the correct number of images to download
-        found_lines = [line for line in output_lines if 'Found' in line and 'images to download' in line]
-        assert len(found_lines) == 1, f"Expected exactly one 'Found X images to download' line, got: {found_lines}"
-        
+        found_lines = [
+            line
+            for line in output_lines
+            if "Found" in line and "images to download" in line
+        ]
+        assert (
+            len(found_lines) == 1
+        ), f"Expected exactly one 'Found X images to download' line, got: {found_lines}"
+
         # Extract number of images found
         found_line = found_lines[0]
         import re
-        match = re.search(r'Found (\d+) images to download', found_line)
+
+        match = re.search(r"Found (\d+) images to download", found_line)
         assert match, f"Could not parse number from: {found_line}"
-        
+
         num_images = int(match.group(1))
         # Should find images for ROMs that:
-        # 1. Exist in CSV data 
+        # 1. Exist in CSV data
         # 2. Don't already have PNG files
         # Based on our fixtures, this should be exactly 3 commands (only Genesis has CSV data)
         assert num_images == 3, f"Expected 3 images to download, got {num_images}"
-        
+
         # Verify actual number of wget commands matches reported number
-        assert len(wget_commands) == num_images, \
-            f"Number of wget commands ({len(wget_commands)}) doesn't match reported number ({num_images})"
+        assert (
+            len(wget_commands) == num_images
+        ), f"Number of wget commands ({len(wget_commands)}) doesn't match reported number ({num_images})"

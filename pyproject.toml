@@ -52,5 +52,6 @@ packages = ["src/rom_thumbnails_downloader"]
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.2.0",
     "pytest>=8.4.1",
 ]
