@@ -1,12 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "rom-thumbnails-downloader"
 version = "0.1.0"
-description = "Add your description here"
+description = "CLI tool for downloading box art images for ROM files based on libretro-thumbnails data"
 readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "ROM Thumbnails Downloader Contributors"},
+]
 requires-python = ">=3.13"
 dependencies = [
     "tqdm>=4.67.1",
 ]
+keywords = ["rom", "thumbnails", "box art", "retro gaming", "emulation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/example/rom-thumbnails-downloader"
+Repository = "https://github.com/example/rom-thumbnails-downloader"
+Issues = "https://github.com/example/rom-thumbnails-downloader/issues"
+
+[project.scripts]
+rom-thumbnails-downloader = "rom_thumbnails_downloader.cli:main"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/data",
+    "/tests",
+    "/docs",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rom_thumbnails_downloader"]
+
+[tool.hatch.build.targets.wheel.sources]
+"data" = "rom_thumbnails_downloader/data"
 
 [dependency-groups]
 dev = [

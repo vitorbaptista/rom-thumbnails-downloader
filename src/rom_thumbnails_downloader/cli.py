@@ -380,9 +380,11 @@ def main() -> None:
     
     rom_root = Path(sys.argv[1])
     
-    # Define the data directory relative to the script location
-    script_dir = Path(__file__).parent
-    data_dir = script_dir / "data" / "processed" / "consoles"
+    # Define the data directory relative to the package location
+    # Go up from src/rom_thumbnails_downloader to project root, then to data
+    package_dir = Path(__file__).parent
+    project_root = package_dir.parent.parent
+    data_dir = project_root / "data" / "processed" / "consoles"
     
     print("Loading CSV data...")
     image_map = load_csv_data(data_dir)

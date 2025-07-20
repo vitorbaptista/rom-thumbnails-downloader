@@ -1,0 +1,132 @@
+{
+  "sha": "6ad0aef3b4dbb54f91c412f2fc67d7fea28f5d1b",
+  "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/trees/6ad0aef3b4dbb54f91c412f2fc67d7fea28f5d1b",
+  "tree": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e437ad240465c9b68c055d89f936157e1d20f4cd",
+      "size": 7,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/e437ad240465c9b68c055d89f936157e1d20f4cd"
+    },
+    {
+      "path": "Named_Boxarts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d564d0bc3dd917926892c55e3706cc116d5b165e",
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/trees/d564d0bc3dd917926892c55e3706cc116d5b165e"
+    },
+    {
+      "path": "Named_Boxarts/.gitkeep",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "Named_Snaps",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c267a0091b89b29789cd81e3496e3c3d6525ba63",
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/trees/c267a0091b89b29789cd81e3496e3c3d6525ba63"
+    },
+    {
+      "path": "Named_Snaps/Cross Bomber (2020-08-26)(Caruso, Fabrizio).png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5b288416e714c6879ce28c760bb512dac1da036a",
+      "size": 53648,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/5b288416e714c6879ce28c760bb512dac1da036a"
+    },
+    {
+      "path": "Named_Snaps/Cross Bomber (2021-05-13)(Caruso, Fabrizio).png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "10a2910b67c760a4b9257d569e679a319bf8e35a",
+      "size": 54577,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/10a2910b67c760a4b9257d569e679a319bf8e35a"
+    },
+    {
+      "path": "Named_Snaps/Cross Shoot (2021-05-13)(Caruso, Fabrizio).png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "067a7ef787ffce5f47d795bf21b2c262fa5f885f",
+      "size": 53787,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/067a7ef787ffce5f47d795bf21b2c262fa5f885f"
+    },
+    {
+      "path": "Named_Snaps/Cross Snake Preview (2020-12-05)(Caruso, Fabrizio).png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7ffdd1f38f713029cab6d4918e8b5a9bc02b039",
+      "size": 82664,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/a7ffdd1f38f713029cab6d4918e8b5a9bc02b039"
+    },
+    {
+      "path": "Named_Snaps/Cross Snake v1.0 (2020-12-12)(Caruso, Fabrizio)[mode0].png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f48707ef62c96ba96c8ce55034e49f33479701bd",
+      "size": 91939,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/f48707ef62c96ba96c8ce55034e49f33479701bd"
+    },
+    {
+      "path": "Named_Snaps/Cross Snake v1.0 (2020-12-12)(Caruso, Fabrizio)[mode1][cpcrslib].png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f48707ef62c96ba96c8ce55034e49f33479701bd",
+      "size": 91939,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/f48707ef62c96ba96c8ce55034e49f33479701bd"
+    },
+    {
+      "path": "Named_Snaps/Cross Snake v1.0 (2020-12-12)(Caruso, Fabrizio)[mode2].png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f48707ef62c96ba96c8ce55034e49f33479701bd",
+      "size": 91939,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/f48707ef62c96ba96c8ce55034e49f33479701bd"
+    },
+    {
+      "path": "Named_Snaps/Cross Snake v2.0 (2020-12-31)(Caruso, Fabrizio)[mode0].png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f48707ef62c96ba96c8ce55034e49f33479701bd",
+      "size": 91939,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/f48707ef62c96ba96c8ce55034e49f33479701bd"
+    },
+    {
+      "path": "Named_Snaps/Cross Snake v2.0 (2020-12-31)(Caruso, Fabrizio)[mode1][cpcrslib].png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f48707ef62c96ba96c8ce55034e49f33479701bd",
+      "size": 91939,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/f48707ef62c96ba96c8ce55034e49f33479701bd"
+    },
+    {
+      "path": "Named_Snaps/Cross Snake v2.0 (2020-12-31)(Caruso, Fabrizio)[mode2].png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f48707ef62c96ba96c8ce55034e49f33479701bd",
+      "size": 91939,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/f48707ef62c96ba96c8ce55034e49f33479701bd"
+    },
+    {
+      "path": "Named_Titles",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7e530126f2f6a96cfdc8da8c7faf23373b90ccf0",
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/trees/7e530126f2f6a96cfdc8da8c7faf23373b90ccf0"
+    },
+    {
+      "path": "Named_Titles/Cross Shoot (2021-05-13)(Caruso, Fabrizio).png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "263e4d7a2f29a69b967e14cb5672e009ef352b79",
+      "size": 20834,
+      "url": "https://api.github.com/repos/libretro-thumbnails/Amstrad_-_GX4000/git/blobs/263e4d7a2f29a69b967e14cb5672e009ef352b79"
+    }
+  ],
+  "truncated": false
+}
