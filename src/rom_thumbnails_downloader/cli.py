@@ -407,7 +407,8 @@ def discover_roms(rom_root: Path) -> Dict[str, Dict[str, Path]]:
         if clean_name in rom_map[console_name]:
             print(
                 f"Warning: Duplicate ROM found for '{clean_name}' in console '{console_name}'. "
-                f"Keeping first entry: {rom_map[console_name][clean_name]}"
+                f"Keeping first entry: {rom_map[console_name][clean_name]}",
+                file=sys.stderr,
             )
             continue
 
@@ -415,7 +416,8 @@ def discover_roms(rom_root: Path) -> Dict[str, Dict[str, Path]]:
         if raw_console_name not in CONSOLE_MAPPING:
             print(
                 f"Warning: No console mapping found for ROM folder '{raw_console_name}'. "
-                f"Using original name '{raw_console_name}' for matching."
+                f"Using original name '{raw_console_name}' for matching.",
+                file=sys.stderr,
             )
 
         rom_map[console_name][clean_name] = rom_file.absolute()
@@ -440,7 +442,10 @@ def generate_wget_commands(
     # Process each console in ROM map
     for console, roms in rom_map.items():
         if console not in image_map:
-            print(f"Warning: Console '{console}' not found in CSV data, skipping.")
+            print(
+                f"Warning: Console '{console}' not found in CSV data, skipping.",
+                file=sys.stderr,
+            )
             continue
 
         console_images = image_map[console]
@@ -527,20 +532,20 @@ Examples:
         project_root = package_dir.parent.parent
         data_dir = project_root / "data" / "processed" / "consoles"
 
-        print("Loading CSV data...")
+        print("Loading CSV data...", file=sys.stderr)
         image_map = load_csv_data(data_dir, thumbnail_order, region_priority)
 
-        print("Discovering ROM files...")
+        print("Discovering ROM files...", file=sys.stderr)
         rom_map = discover_roms(args.rom_path)
 
-        print("Generating wget commands...")
+        print("Generating wget commands...", file=sys.stderr)
         commands = list(generate_wget_commands(image_map, rom_map))
 
         if not commands:
-            print("No matching images found for ROMs.")
+            print("No matching images found for ROMs.", file=sys.stderr)
             return
 
-        print(f"Found {len(commands)} images to download:")
+        print(f"Found {len(commands)} images to download:", file=sys.stderr)
 
         # Display progress bar while printing commands
         for command in tqdm(commands, desc="Processing commands"):
