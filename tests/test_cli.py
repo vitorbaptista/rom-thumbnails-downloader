@@ -735,51 +735,38 @@ class TestCLIInterface:
         with pytest.raises(SystemExit):
             main()
 
-    @patch("rom_thumbnails_downloader.cli.tqdm")
     @patch("rom_thumbnails_downloader.cli.load_csv_data")
     @patch("rom_thumbnails_downloader.cli.discover_roms")
     @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
     @patch("sys.argv", ["rom_thumbnails_downloader.cli.py", "/nonexistent/path"])
     def test_main_nonexistent_rom_directory(
-        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+        self, mock_gen_commands, mock_discover, mock_load_csv
     ):
         mock_load_csv.return_value = {}
         mock_discover.return_value = {}
         mock_gen_commands.return_value = iter([])
-
-        mock_tqdm_instance = MagicMock()
-        mock_tqdm.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__exit__.return_value = None
 
         # Should not crash even with nonexistent directory
         main()
 
         mock_discover.assert_called_once_with(Path("/nonexistent/path"))
 
-    @patch("rom_thumbnails_downloader.cli.tqdm")
     @patch("rom_thumbnails_downloader.cli.load_csv_data")
     @patch("rom_thumbnails_downloader.cli.discover_roms")
     @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
     @patch("sys.argv", ["rom_thumbnails_downloader.cli.py", "relative/path"])
     def test_main_handles_relative_path(
-        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+        self, mock_gen_commands, mock_discover, mock_load_csv
     ):
         mock_load_csv.return_value = {}
         mock_discover.return_value = {}
         mock_gen_commands.return_value = iter([])
-
-        mock_tqdm_instance = MagicMock()
-        mock_tqdm.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__exit__.return_value = None
 
         main()
 
         # Should handle relative paths correctly
         mock_discover.assert_called_once_with(Path("relative/path"))
 
-    @patch("rom_thumbnails_downloader.cli.tqdm")
     @patch("rom_thumbnails_downloader.cli.load_csv_data")
     @patch("rom_thumbnails_downloader.cli.discover_roms")
     @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
@@ -793,16 +780,11 @@ class TestCLIInterface:
         ],
     )
     def test_main_custom_thumbnail_order(
-        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+        self, mock_gen_commands, mock_discover, mock_load_csv
     ):
         mock_load_csv.return_value = {}
         mock_discover.return_value = {}
         mock_gen_commands.return_value = iter([])
-
-        mock_tqdm_instance = MagicMock()
-        mock_tqdm.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__exit__.return_value = None
 
         main()
 
@@ -825,7 +807,6 @@ class TestCLIInterface:
         with pytest.raises(SystemExit):
             main()
 
-    @patch("rom_thumbnails_downloader.cli.tqdm")
     @patch("rom_thumbnails_downloader.cli.load_csv_data")
     @patch("rom_thumbnails_downloader.cli.discover_roms")
     @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
@@ -839,16 +820,11 @@ class TestCLIInterface:
         ],
     )
     def test_main_multiple_thumbnail_types(
-        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+        self, mock_gen_commands, mock_discover, mock_load_csv
     ):
         mock_load_csv.return_value = {}
         mock_discover.return_value = {}
         mock_gen_commands.return_value = iter([])
-
-        mock_tqdm_instance = MagicMock()
-        mock_tqdm.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__exit__.return_value = None
 
         main()
 
@@ -857,7 +833,6 @@ class TestCLIInterface:
         call_args = mock_load_csv.call_args
         assert call_args[0][1] == ["title_screen", "boxart"]
 
-    @patch("rom_thumbnails_downloader.cli.tqdm")
     @patch("rom_thumbnails_downloader.cli.load_csv_data")
     @patch("rom_thumbnails_downloader.cli.discover_roms")
     @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
@@ -871,16 +846,11 @@ class TestCLIInterface:
         ],
     )
     def test_main_custom_region_priority(
-        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+        self, mock_gen_commands, mock_discover, mock_load_csv
     ):
         mock_load_csv.return_value = {}
         mock_discover.return_value = {}
         mock_gen_commands.return_value = iter([])
-
-        mock_tqdm_instance = MagicMock()
-        mock_tqdm.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__exit__.return_value = None
 
         main()
 
@@ -889,7 +859,6 @@ class TestCLIInterface:
         call_args = mock_load_csv.call_args
         assert call_args[0][2] == ["japan", "usa"]
 
-    @patch("rom_thumbnails_downloader.cli.tqdm")
     @patch("rom_thumbnails_downloader.cli.load_csv_data")
     @patch("rom_thumbnails_downloader.cli.discover_roms")
     @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
@@ -905,16 +874,11 @@ class TestCLIInterface:
         ],
     )
     def test_main_combined_thumbnail_and_region(
-        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+        self, mock_gen_commands, mock_discover, mock_load_csv
     ):
         mock_load_csv.return_value = {}
         mock_discover.return_value = {}
         mock_gen_commands.return_value = iter([])
-
-        mock_tqdm_instance = MagicMock()
-        mock_tqdm.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
-        mock_tqdm_instance.__exit__.return_value = None
 
         main()
 
@@ -962,11 +926,16 @@ class TestIntegration:
         # Verify the script ran successfully
         assert result.returncode == 0, f"Script failed with stderr: {result.stderr}"
 
-        # Split output into lines for analysis
-        output_lines = result.stdout.strip().split("\n")
+        # Split stdout and stderr for analysis
+        stdout_lines = (
+            result.stdout.strip().split("\n") if result.stdout.strip() else []
+        )
+        stderr_lines = (
+            result.stderr.strip().split("\n") if result.stderr.strip() else []
+        )
 
-        # Find lines that contain wget commands
-        wget_commands = [line for line in output_lines if line.startswith("wget")]
+        # Find lines that contain wget commands (should be in stdout)
+        wget_commands = [line for line in stdout_lines if line.startswith("wget")]
 
         # Verify we got some wget commands
         assert len(wget_commands) > 0, "No wget commands found in output"
@@ -1001,20 +970,20 @@ class TestIntegration:
                 expected_game in cmd for cmd in wget_commands
             ), f"Expected game '{expected_game}' not found in wget commands: {wget_commands}"
 
-        # Verify duplicate ROM warnings appear in stdout
+        # Verify duplicate ROM warnings appear in stderr
         warning_lines = [
-            line for line in output_lines if "Warning: Duplicate ROM" in line
+            line for line in stderr_lines if "Warning: Duplicate ROM" in line
         ]
 
         # Should have warnings for the duplicate ROMs (ROMs with same clean names as existing PNGs)
         assert (
             len(warning_lines) >= 1
-        ), f"Expected duplicate ROM warnings, got output: {result.stdout}"
+        ), f"Expected duplicate ROM warnings, got stderr: {result.stderr}"
 
-        # Verify the script reports the correct number of images to download
+        # Verify the script reports the correct number of images to download (in stderr)
         found_lines = [
             line
-            for line in output_lines
+            for line in stderr_lines
             if "Found" in line and "images to download" in line
         ]
         assert (
@@ -1073,10 +1042,12 @@ class TestIntegration:
         assert result.returncode == 0, f"Script failed with stderr: {result.stderr}"
 
         # Split output into lines for analysis
-        output_lines = result.stdout.strip().split("\n")
+        stdout_lines = (
+            result.stdout.strip().split("\n") if result.stdout.strip() else []
+        )
 
         # Find lines that contain wget commands
-        wget_commands = [line for line in output_lines if line.startswith("wget")]
+        wget_commands = [line for line in stdout_lines if line.startswith("wget")]
 
         # Should still get the same number of commands since we only have boxart in our test data
         assert (

@@ -15,7 +15,7 @@ Covered:
 * Cleaning/normalising game titles for exact matching.
 * Discovering ROM files inside a one-level console folder hierarchy.
 * Generating, **not executing**, `wget` commands to download thumbnails.
-* Displaying a progress bar for processing using `tqdm`.
+* Fast processing that completes quickly without requiring a progress bar.
 Not covered:
 * Download execution and checksum verification.
 * Deeply nested ROM structures (>1 level).
@@ -97,14 +97,14 @@ rom_root/
 * Script finishes within a few seconds for directories up to 10k ROMs.
 * Memory footprint < 200 MB.
 * Compatible with Python 3.8+.
-* Displays a responsive progress bar (`tqdm`) throughout processing.
+* Fast execution that completes quickly without requiring progress tracking.
 
 ## 11. Acceptance Criteria
 1. Running the script with the ROM sample set prints correct `wget` commands only for games that have a Named_Boxarts entry.
 2. Commands point to the correct console sub-folders and use the ROM filename stem for the output filename.
 3. No command overwrites an existing file (verified by rerunning and seeing fewer/no commands).
-4. Pytest unit tests cover: cleaning algorithm, region preference, CSV loading, ROM discovery, matching logic, and progress bar invocation.
-5. When executed, the script displays a `tqdm` progress bar that reaches 100% upon completion.
+4. Pytest unit tests cover: cleaning algorithm, region preference, CSV loading, ROM discovery, and matching logic.
+5. When executed, the script completes quickly and efficiently without requiring progress indication.
 
 ## 12. Future Enhancements
 * Execute downloads in parallel.

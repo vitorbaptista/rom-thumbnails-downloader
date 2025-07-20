@@ -12,7 +12,6 @@ from typing import Dict, List, Tuple, Optional, Generator
 from collections import defaultdict
 from urllib.parse import urlparse, quote
 import sys
-from tqdm import tqdm
 
 
 # Mapping from user-friendly thumbnail type names to CSV column names
@@ -547,8 +546,8 @@ Examples:
 
         print(f"Found {len(commands)} images to download:", file=sys.stderr)
 
-        # Display progress bar while printing commands
-        for command in tqdm(commands, desc="Processing commands"):
+        # Print commands
+        for command in commands:
             print(command)
 
     except ValueError as e:

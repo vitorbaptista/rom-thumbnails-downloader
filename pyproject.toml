@@ -12,9 +12,6 @@ authors = [
     {name = "ROM Thumbnails Downloader Contributors"},
 ]
 requires-python = ">=3.10"
-dependencies = [
-    "tqdm>=4.67.1",
-]
 keywords = ["rom", "thumbnails", "box art", "retro gaming", "emulation"]
 classifiers = [
     "Development Status :: 4 - Beta",
