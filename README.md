@@ -1,16 +1,17 @@
 # ROM Thumbnails Downloader
 
-**Automatically download box art images for your ROM collection**
+**Automatically download thumbnail images for your ROM collection**
 
-This tool scans your ROM directories and generates download commands for matching box art images from the [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails) project. Perfect for retro gaming enthusiasts who want to organize their collections with beautiful box art thumbnails.
+This tool scans your ROM directories and generates download commands for matching thumbnail images from the [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails) project. Choose from box art, title screens, or gameplay snapshots to enhance your retro gaming collection.
 
 ## What It Does
 
 - **Scans** your ROM collection directories (Genesis, SNES, NES, etc.)
-- **Finds** matching box art images from the libretro-thumbnails database
+- **Finds** matching thumbnail images from the libretro-thumbnails database
 - **Generates** wget commands to download the images
 - **Names** images to match your ROM files perfectly
-- **Prefers** USA region box art, with fallbacks to Europe, World, then others
+- **Supports** box art, title screens, and gameplay snapshots
+- **Prefers** USA region versions, with fallbacks to Europe, World, then others
 - **Fast** and lightweight - only downloads what you need
 
 ## Quick Start
@@ -52,6 +53,46 @@ uvx rom-thumbnails-downloader ~/roms
 # The tool will output wget commands like this:
 # wget "https://raw.githubusercontent.com/libretro-thumbnails/Sega_-_Mega_Drive_-_Genesis/refs/heads/master/Named_Boxarts/Sonic%20the%20Hedgehog%20(USA).png" -O "/home/user/roms/genesis/Sonic the Hedgehog (USA).png"
 ```
+
+### Choose Thumbnail Type
+
+By default, the tool downloads box art images. You can choose different thumbnail types or change the priority order:
+
+```bash
+# Download only title screens
+uvx rom-thumbnails-downloader ~/roms --thumbnail-order title_screen
+
+# Prefer title screens, fall back to box art
+uvx rom-thumbnails-downloader ~/roms --thumbnail-order title_screen,boxart
+
+# Download only gameplay snapshots
+uvx rom-thumbnails-downloader ~/roms --thumbnail-order snapshot
+```
+
+Available thumbnail types:
+- **snapshot** - In-game snapshots (gameplay screenshots)
+- **boxart** - Scans of game boxes or covers (default)
+- **title_screen** - Images of the game's introductory title screen
+
+### Choose Region Priority
+
+By default, the tool prefers USA versions, then Europe, then World regions. You can customize this priority:
+
+```bash
+# Prefer Japanese versions
+uvx rom-thumbnails-downloader ~/roms --region-priority japan,usa,europe
+
+# Brazilian Portuguese preference
+uvx rom-thumbnails-downloader ~/roms --region-priority brazil,usa
+
+# German, then French, then any European version
+uvx rom-thumbnails-downloader ~/roms --region-priority germany,france,europe,usa
+
+# Combine with thumbnail type selection
+uvx rom-thumbnails-downloader ~/roms --thumbnail-order boxart --region-priority korea,japan,usa
+```
+
+The region names should match what appears in your ROM filenames within parentheses (e.g., `Game (USA).rom` has region "USA").
 
 ### Download the Images
 
@@ -122,9 +163,10 @@ The tool automatically maps common ROM folder names (like `genesis`, `snes`, `ne
 1. **Scan**: The tool scans your ROM directories and catalogs all ROM files
 2. **Clean**: ROM filenames are cleaned (removing regions, revisions, file extensions)
 3. **Match**: Cleaned names are matched against the libretro-thumbnails database
-4. **Prioritize**: USA region box art is preferred, with smart fallbacks
-5. **Generate**: wget commands are created for downloading matching images
-6. **Skip**: Already existing image files are automatically skipped
+4. **Select**: Choose thumbnail type based on your preference (snapshot, boxart, or title_screen)
+5. **Prioritize**: USA region versions are preferred, with smart fallbacks
+6. **Generate**: wget commands are created for downloading matching images
+7. **Skip**: Already existing image files are automatically skipped
 
 ## Troubleshooting
 
@@ -151,18 +193,36 @@ The tool automatically maps common ROM folder names (like `genesis`, `snes`, `ne
 
 ## Region Preferences
 
-The tool uses smart region preference:
+The tool uses smart region preference with a default priority order:
 
-1. **USA** versions (preferred)
+1. **USA** versions (preferred by default)
 2. **Europe** versions
 3. **World** versions
-4. **Other regions** (Japan, etc.)
+4. **Other regions** (first found)
 
-This means if a game has both "Super Mario World (USA)" and "Super Mario World (Europe)" box art available, it will choose the USA version.
+You can customize this order using the `--region-priority` parameter:
+
+```bash
+# Default behavior (USA → Europe → World)
+uvx rom-thumbnails-downloader ~/roms
+
+# Custom priority (Japan → USA → Europe)
+uvx rom-thumbnails-downloader ~/roms --region-priority japan,usa,europe
+```
+
+The tool matches regions case-insensitively within parentheses in filenames. For example:
+- `Game (USA)` matches region "usa"
+- `Game (Japan)` matches region "japan"
+- `Game (Brazil)` matches region "brazil"
+
+Any region name that appears in your ROM collection can be used in the priority list.
 
 ## What's Included
 
-- Box art images from the libretro-thumbnails project
+- Three types of images from the libretro-thumbnails project:
+  - Box art (game covers and packaging)
+  - Title screens (game intro screens)
+  - Snapshots (in-game screenshots)
 - Smart ROM filename cleaning and matching
 - Automatic region preference handling
 - Support for 90+ gaming systems

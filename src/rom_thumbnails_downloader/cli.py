@@ -6,6 +6,7 @@ Matches ROM files with corresponding box-art images from CSV data.
 
 import argparse
 import csv
+import re
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Generator
 from collections import defaultdict
@@ -23,6 +24,9 @@ THUMBNAIL_TYPE_MAPPING = {
 
 # Default thumbnail priority order
 DEFAULT_THUMBNAIL_ORDER = ["snapshot", "boxart", "title_screen"]
+
+# Default region priority order
+DEFAULT_REGION_ORDER = ["usa", "europe", "world"]
 
 # Mapping from ROM folder system names to CSV console names
 CONSOLE_MAPPING = {
@@ -186,14 +190,15 @@ def clean_title(title: str) -> str:
     return title.strip()
 
 
-def apply_region_preference(entries: List[Tuple[str, str]]) -> Optional[str]:
+def apply_region_preference(
+    entries: List[Tuple[str, str]], region_priority: List[str] = None
+) -> Optional[str]:
     """
     Apply region preference to select the best image URL from multiple entries.
 
-    Preference order: USA -> Europe -> World -> Other (first encountered)
-
     Args:
         entries: List of (title, url) tuples for the same clean name
+        region_priority: List of regions in priority order (default: ["usa", "europe", "world"])
 
     Returns:
         The preferred image URL, or None if entries is empty
@@ -204,27 +209,26 @@ def apply_region_preference(entries: List[Tuple[str, str]]) -> Optional[str]:
     if len(entries) == 1:
         return entries[0][1]
 
-    # Check for USA preference
-    for title, url in entries:
-        if "usa" in title.lower():
-            return url
+    if region_priority is None:
+        region_priority = DEFAULT_REGION_ORDER
 
-    # Check for Europe preference
-    for title, url in entries:
-        if "europe" in title.lower():
-            return url
-
-    # Check for World preference
-    for title, url in entries:
-        if "world" in title.lower():
-            return url
+    # Check each priority region
+    for region in region_priority:
+        for title, url in entries:
+            # Extract text within parentheses and check for region match
+            # Find all text within parentheses
+            paren_matches = re.findall(r"\(([^)]+)\)", title)
+            # Check if the region appears in any parentheses (case-insensitive)
+            for paren_content in paren_matches:
+                if region.lower() in paren_content.lower():
+                    return url
 
     # Return first entry if no preferred regions found
     return entries[0][1]
 
 
 def load_csv_data(
-    data_dir: Path, thumbnail_order: List[str] = None
+    data_dir: Path, thumbnail_order: List[str] = None, region_priority: List[str] = None
 ) -> Dict[str, Dict[str, str]]:
     """
     Load CSV data from all console CSV files in the data directory.
@@ -232,6 +236,7 @@ def load_csv_data(
     Args:
         data_dir: Path to the data/processed/consoles directory
         thumbnail_order: Priority order for thumbnail types (default: ["snapshot", "boxart", "title_screen"])
+        region_priority: Priority order for regions (default: ["usa", "europe", "world"])
 
     Returns:
         Nested dictionary: {console: {clean_name: image_url}}
@@ -285,7 +290,9 @@ def load_csv_data(
             for csv_image_type in csv_image_types:
                 if csv_image_type in type_entries and type_entries[csv_image_type]:
                     # Apply region preference within this image type
-                    selected_url = apply_region_preference(type_entries[csv_image_type])
+                    selected_url = apply_region_preference(
+                        type_entries[csv_image_type], region_priority
+                    )
                     if selected_url:
                         break
 
@@ -331,6 +338,33 @@ def validate_thumbnail_order(order_string: str) -> List[str]:
             seen.add(t)
 
     return result
+
+
+def validate_region_priority(priority_string: str) -> List[str]:
+    """
+    Validate and parse region priority string.
+
+    Args:
+        priority_string: Comma-separated region names
+
+    Returns:
+        List of region names in lowercase
+    """
+    if not priority_string.strip():
+        return DEFAULT_REGION_ORDER
+
+    # Split by comma, strip whitespace, and convert to lowercase
+    regions = [r.strip().lower() for r in priority_string.split(",") if r.strip()]
+
+    # Remove duplicates while preserving order
+    seen = set()
+    result = []
+    for r in regions:
+        if r not in seen:
+            result.append(r)
+            seen.add(r)
+
+    return result if result else DEFAULT_REGION_ORDER
 
 
 def discover_roms(rom_root: Path) -> Dict[str, Dict[str, Path]]:
@@ -456,6 +490,8 @@ Examples:
   %(prog)s /path/to/roms
   %(prog)s /path/to/roms --thumbnail-order boxart
   %(prog)s /path/to/roms --thumbnail-order title_screen,boxart
+  %(prog)s /path/to/roms --region-priority japan,usa,europe
+  %(prog)s /path/to/roms --thumbnail-order boxart --region-priority brazil,usa
         """,
     )
 
@@ -470,11 +506,21 @@ Examples:
         "Specify 1-3 comma-separated values from: {snapshot, boxart, title_screen}",
     )
 
+    parser.add_argument(
+        "--region-priority",
+        default=",".join(DEFAULT_REGION_ORDER),
+        help=f"Priority order for regions (default: {','.join(DEFAULT_REGION_ORDER)}). "
+        "Specify comma-separated region names as they appear in ROM filenames (e.g., usa,europe,japan,brazil)",
+    )
+
     try:
         args = parser.parse_args()
 
         # Validate thumbnail order
         thumbnail_order = validate_thumbnail_order(args.thumbnail_order)
+
+        # Validate region priority
+        region_priority = validate_region_priority(args.region_priority)
 
         # Define the data directory relative to the package location
         package_dir = Path(__file__).parent
@@ -482,7 +528,7 @@ Examples:
         data_dir = project_root / "data" / "processed" / "consoles"
 
         print("Loading CSV data...")
-        image_map = load_csv_data(data_dir, thumbnail_order)
+        image_map = load_csv_data(data_dir, thumbnail_order, region_priority)
 
         print("Discovering ROM files...")
         rom_map = discover_roms(args.rom_path)

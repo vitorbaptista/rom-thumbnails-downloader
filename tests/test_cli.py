@@ -8,8 +8,10 @@ from rom_thumbnails_downloader.cli import (
     discover_roms,
     generate_wget_commands,
     validate_thumbnail_order,
+    validate_region_priority,
     main,
     DEFAULT_THUMBNAIL_ORDER,
+    DEFAULT_REGION_ORDER,
 )
 
 
@@ -109,6 +111,42 @@ class TestRegionPreference:
         result = apply_region_preference(entries)
         assert result == "https://example.com/game_usa.png"
 
+    def test_apply_region_preference_custom_priority(self):
+        entries = [
+            ("Game (USA)", "https://example.com/game_usa.png"),
+            ("Game (Japan)", "https://example.com/game_jp.png"),
+            ("Game (Europe)", "https://example.com/game_eur.png"),
+        ]
+        # Prefer Japan over USA
+        result = apply_region_preference(entries, ["japan", "usa", "europe"])
+        assert result == "https://example.com/game_jp.png"
+
+    def test_apply_region_preference_partial_match(self):
+        entries = [
+            ("Game (Brazil)", "https://example.com/game_br.png"),
+            ("Game (USA)", "https://example.com/game_usa.png"),
+        ]
+        # Search for "bra" should match "Brazil"
+        result = apply_region_preference(entries, ["bra", "usa"])
+        assert result == "https://example.com/game_br.png"
+
+    def test_apply_region_preference_no_parentheses_ignored(self):
+        entries = [
+            ("USA Game", "https://example.com/usa_game.png"),
+            ("Game (Europe)", "https://example.com/game_eur.png"),
+        ]
+        # Should not match "USA" in title, only in parentheses
+        result = apply_region_preference(entries, ["usa", "europe"])
+        assert result == "https://example.com/game_eur.png"
+
+    def test_apply_region_preference_multiple_parentheses(self):
+        entries = [
+            ("Game (Rev 1) (USA)", "https://example.com/game_usa.png"),
+            ("Game (Beta) (Japan)", "https://example.com/game_jp.png"),
+        ]
+        result = apply_region_preference(entries, ["japan", "usa"])
+        assert result == "https://example.com/game_jp.png"
+
 
 class TestThumbnailOrderValidation:
     def test_validate_thumbnail_order_default_empty(self):
@@ -138,6 +176,36 @@ class TestThumbnailOrderValidation:
     def test_validate_thumbnail_order_mixed_valid_invalid(self):
         with pytest.raises(ValueError, match="Invalid thumbnail type 'bad'"):
             validate_thumbnail_order("boxart,bad,snapshot")
+
+
+class TestRegionPriorityValidation:
+    def test_validate_region_priority_default_empty(self):
+        result = validate_region_priority("")
+        assert result == DEFAULT_REGION_ORDER
+
+    def test_validate_region_priority_single_region(self):
+        result = validate_region_priority("japan")
+        assert result == ["japan"]
+
+    def test_validate_region_priority_multiple_regions(self):
+        result = validate_region_priority("brazil,usa,korea")
+        assert result == ["brazil", "usa", "korea"]
+
+    def test_validate_region_priority_with_spaces(self):
+        result = validate_region_priority(" japan , usa , europe ")
+        assert result == ["japan", "usa", "europe"]
+
+    def test_validate_region_priority_removes_duplicates(self):
+        result = validate_region_priority("usa,japan,usa,europe")
+        assert result == ["usa", "japan", "europe"]
+
+    def test_validate_region_priority_case_conversion(self):
+        result = validate_region_priority("USA,Europe,JAPAN")
+        assert result == ["usa", "europe", "japan"]
+
+    def test_validate_region_priority_empty_items(self):
+        result = validate_region_priority("usa,,japan,")
+        assert result == ["usa", "japan"]
 
 
 class TestCSVLoading:
@@ -242,6 +310,25 @@ class TestCSVLoading:
             result = load_csv_data(Path("/fake/data"), ["boxart"])
 
             expected = {"Console": {"Game": "https://example.com/game_usa.png"}}
+            assert result == expected
+
+    def test_load_csv_data_custom_region_priority(self):
+        csv_content = '"Named_Boxarts","Game (Japan)","https://example.com/game_jp.png"\n"Named_Boxarts","Game (USA)","https://example.com/game_usa.png"\n"Named_Boxarts","Game (Brazil)","https://example.com/game_br.png"'
+        mock_file = mock_open(read_data=csv_content)
+
+        with patch("builtins.open", mock_file), patch(
+            "rom_thumbnails_downloader.cli.Path.glob"
+        ) as mock_glob:
+            mock_csv_path = MagicMock()
+            mock_csv_path.stem = "Console"
+            mock_glob.return_value = [mock_csv_path]
+
+            # Custom region priority: Brazil > Japan > USA
+            result = load_csv_data(
+                Path("/fake/data"), ["boxart"], ["brazil", "japan", "usa"]
+            )
+
+            expected = {"Console": {"Game": "https://example.com/game_br.png"}}
             assert result == expected
 
     @patch("rom_thumbnails_downloader.cli.Path.glob")
@@ -769,6 +856,73 @@ class TestCLIInterface:
         mock_load_csv.assert_called_once()
         call_args = mock_load_csv.call_args
         assert call_args[0][1] == ["title_screen", "boxart"]
+
+    @patch("rom_thumbnails_downloader.cli.tqdm")
+    @patch("rom_thumbnails_downloader.cli.load_csv_data")
+    @patch("rom_thumbnails_downloader.cli.discover_roms")
+    @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
+    @patch(
+        "sys.argv",
+        [
+            "rom_thumbnails_downloader.cli.py",
+            "/rom/path",
+            "--region-priority",
+            "japan,usa",
+        ],
+    )
+    def test_main_custom_region_priority(
+        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+    ):
+        mock_load_csv.return_value = {}
+        mock_discover.return_value = {}
+        mock_gen_commands.return_value = iter([])
+
+        mock_tqdm_instance = MagicMock()
+        mock_tqdm.return_value = mock_tqdm_instance
+        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
+        mock_tqdm_instance.__exit__.return_value = None
+
+        main()
+
+        # Verify load_csv_data was called with custom region priority
+        mock_load_csv.assert_called_once()
+        call_args = mock_load_csv.call_args
+        assert call_args[0][2] == ["japan", "usa"]
+
+    @patch("rom_thumbnails_downloader.cli.tqdm")
+    @patch("rom_thumbnails_downloader.cli.load_csv_data")
+    @patch("rom_thumbnails_downloader.cli.discover_roms")
+    @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
+    @patch(
+        "sys.argv",
+        [
+            "rom_thumbnails_downloader.cli.py",
+            "/rom/path",
+            "--thumbnail-order",
+            "boxart",
+            "--region-priority",
+            "brazil,europe,usa",
+        ],
+    )
+    def test_main_combined_thumbnail_and_region(
+        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+    ):
+        mock_load_csv.return_value = {}
+        mock_discover.return_value = {}
+        mock_gen_commands.return_value = iter([])
+
+        mock_tqdm_instance = MagicMock()
+        mock_tqdm.return_value = mock_tqdm_instance
+        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
+        mock_tqdm_instance.__exit__.return_value = None
+
+        main()
+
+        # Verify load_csv_data was called with both custom parameters
+        mock_load_csv.assert_called_once()
+        call_args = mock_load_csv.call_args
+        assert call_args[0][1] == ["boxart"]
+        assert call_args[0][2] == ["brazil", "europe", "usa"]
 
 
 class TestIntegration:
