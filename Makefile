@@ -12,7 +12,7 @@ data/raw/libretro-thumbnails.json:
 	curl -s https://api.github.com/repos/libretro-thumbnails/libretro-thumbnails/contents/ > $@
 
 data/processed/consoles/%.csv: data/raw/consoles/%.json
-	@console=$(basename $@ .csv); \
+	@console=$(basename $(notdir $@) .csv); \
 	jq -r '.tree[] | select(.type == "blob") | [(.path | split("/") | .[0]), (.path | split("/") | .[-1] | split(".") | .[0:-1] | join(".")), ("https://raw.githubusercontent.com/libretro-thumbnails/'"$$console"'/refs/heads/master/" + .path)] | @csv' $< \
 		| grep -v .gitignore \
 		> $@
