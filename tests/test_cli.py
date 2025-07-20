@@ -7,7 +7,9 @@ from rom_thumbnails_downloader.cli import (
     load_csv_data,
     discover_roms,
     generate_wget_commands,
+    validate_thumbnail_order,
     main,
+    DEFAULT_THUMBNAIL_ORDER,
 )
 
 
@@ -108,58 +110,139 @@ class TestRegionPreference:
         assert result == "https://example.com/game_usa.png"
 
 
+class TestThumbnailOrderValidation:
+    def test_validate_thumbnail_order_default_empty(self):
+        result = validate_thumbnail_order("")
+        assert result == DEFAULT_THUMBNAIL_ORDER
+
+    def test_validate_thumbnail_order_single_type(self):
+        result = validate_thumbnail_order("boxart")
+        assert result == ["boxart"]
+
+    def test_validate_thumbnail_order_multiple_types(self):
+        result = validate_thumbnail_order("title_screen,boxart,snapshot")
+        assert result == ["title_screen", "boxart", "snapshot"]
+
+    def test_validate_thumbnail_order_with_spaces(self):
+        result = validate_thumbnail_order(" boxart , title_screen ")
+        assert result == ["boxart", "title_screen"]
+
+    def test_validate_thumbnail_order_removes_duplicates(self):
+        result = validate_thumbnail_order("boxart,boxart,snapshot")
+        assert result == ["boxart", "snapshot"]
+
+    def test_validate_thumbnail_order_invalid_type(self):
+        with pytest.raises(ValueError, match="Invalid thumbnail type 'invalid'"):
+            validate_thumbnail_order("invalid")
+
+    def test_validate_thumbnail_order_mixed_valid_invalid(self):
+        with pytest.raises(ValueError, match="Invalid thumbnail type 'bad'"):
+            validate_thumbnail_order("boxart,bad,snapshot")
+
+
 class TestCSVLoading:
-    @patch("rom_thumbnails_downloader.cli.Path.glob")
-    @patch("builtins.open", new_callable=mock_open)
-    def test_load_csv_data_single_file(self, mock_file, mock_glob):
-        # Mock CSV content
-        csv_content = '"Named_Boxarts","Game Title (USA)","https://example.com/game.png"\n"Snapshots","Other Title","https://example.com/other.png"'
-        mock_file.return_value.read.return_value = csv_content
+    def test_load_csv_data_single_file_default_order(self):
+        # Mock CSV content with multiple image types
+        csv_content = '"Named_Boxarts","Game Title (USA)","https://example.com/game_boxart.png"\n"Named_Snaps","Game Title (USA)","https://example.com/game_snap.png"'
+        mock_file = mock_open(read_data=csv_content)
 
-        # Mock glob to return one CSV file
-        mock_csv_path = MagicMock()
-        mock_csv_path.stem = "Console_Name"
-        mock_glob.return_value = [mock_csv_path]
+        with patch("builtins.open", mock_file), patch(
+            "rom_thumbnails_downloader.cli.Path.glob"
+        ) as mock_glob:
+            mock_csv_path = MagicMock()
+            mock_csv_path.stem = "Console_Name"
+            mock_glob.return_value = [mock_csv_path]
 
-        result = load_csv_data(Path("/fake/data/processed/consoles"))
+            # Default order is snapshot, boxart, title_screen - should prefer snapshot
+            result = load_csv_data(Path("/fake/data/processed/consoles"))
 
-        expected = {"Console_Name": {"Game Title": "https://example.com/game.png"}}
-        assert result == expected
-
-    @patch("rom_thumbnails_downloader.cli.Path.glob")
-    @patch("builtins.open", new_callable=mock_open)
-    def test_load_csv_data_filters_named_boxarts_only(self, mock_file, mock_glob):
-        csv_content = '"Named_Boxarts","Game (USA)","https://example.com/game.png"\n"Snapshots","Game (USA)","https://example.com/snapshot.png"\n"Named_Boxarts","Another Game","https://example.com/another.png"'
-        mock_file.return_value.read.return_value = csv_content
-
-        mock_csv_path = MagicMock()
-        mock_csv_path.stem = "Console"
-        mock_glob.return_value = [mock_csv_path]
-
-        result = load_csv_data(Path("/fake/data"))
-
-        expected = {
-            "Console": {
-                "Game": "https://example.com/game.png",
-                "Another Game": "https://example.com/another.png",
+            expected = {
+                "Console_Name": {"Game Title": "https://example.com/game_snap.png"}
             }
-        }
-        assert result == expected
+            assert result == expected
 
-    @patch("rom_thumbnails_downloader.cli.Path.glob")
-    @patch("builtins.open", new_callable=mock_open)
-    def test_load_csv_data_applies_region_preference(self, mock_file, mock_glob):
+    def test_load_csv_data_custom_thumbnail_order(self):
+        # Mock CSV content with multiple image types
+        csv_content = '"Named_Boxarts","Game Title (USA)","https://example.com/game_boxart.png"\n"Named_Snaps","Game Title (USA)","https://example.com/game_snap.png"\n"Named_Titles","Game Title (USA)","https://example.com/game_title.png"'
+        mock_file = mock_open(read_data=csv_content)
+
+        with patch("builtins.open", mock_file), patch(
+            "rom_thumbnails_downloader.cli.Path.glob"
+        ) as mock_glob:
+            mock_csv_path = MagicMock()
+            mock_csv_path.stem = "Console_Name"
+            mock_glob.return_value = [mock_csv_path]
+
+            # Custom order: boxart first
+            result = load_csv_data(
+                Path("/fake/data/processed/consoles"), ["boxart", "snapshot"]
+            )
+
+            expected = {
+                "Console_Name": {"Game Title": "https://example.com/game_boxart.png"}
+            }
+            assert result == expected
+
+    def test_load_csv_data_fallback_to_second_choice(self):
+        # Mock CSV content with only title_screen and snapshot (no boxart)
+        csv_content = '"Named_Snaps","Game Title (USA)","https://example.com/game_snap.png"\n"Named_Titles","Game Title (USA)","https://example.com/game_title.png"'
+        mock_file = mock_open(read_data=csv_content)
+
+        with patch("builtins.open", mock_file), patch(
+            "rom_thumbnails_downloader.cli.Path.glob"
+        ) as mock_glob:
+            mock_csv_path = MagicMock()
+            mock_csv_path.stem = "Console_Name"
+            mock_glob.return_value = [mock_csv_path]
+
+            # Order: boxart (not available), snapshot (available)
+            result = load_csv_data(
+                Path("/fake/data/processed/consoles"),
+                ["boxart", "snapshot", "title_screen"],
+            )
+
+            expected = {
+                "Console_Name": {"Game Title": "https://example.com/game_snap.png"}
+            }
+            assert result == expected
+
+    def test_load_csv_data_filters_by_thumbnail_type(self):
+        csv_content = '"Named_Boxarts","Game (USA)","https://example.com/game.png"\n"Named_Snaps","Game (USA)","https://example.com/snapshot.png"\n"Named_Boxarts","Another Game","https://example.com/another.png"'
+        mock_file = mock_open(read_data=csv_content)
+
+        with patch("builtins.open", mock_file), patch(
+            "rom_thumbnails_downloader.cli.Path.glob"
+        ) as mock_glob:
+            mock_csv_path = MagicMock()
+            mock_csv_path.stem = "Console"
+            mock_glob.return_value = [mock_csv_path]
+
+            # Only request boxart images
+            result = load_csv_data(Path("/fake/data"), ["boxart"])
+
+            expected = {
+                "Console": {
+                    "Game": "https://example.com/game.png",
+                    "Another Game": "https://example.com/another.png",
+                }
+            }
+            assert result == expected
+
+    def test_load_csv_data_applies_region_preference(self):
         csv_content = '"Named_Boxarts","Game (Europe)","https://example.com/game_eur.png"\n"Named_Boxarts","Game (USA)","https://example.com/game_usa.png"\n"Named_Boxarts","Game (World)","https://example.com/game_world.png"'
-        mock_file.return_value.read.return_value = csv_content
+        mock_file = mock_open(read_data=csv_content)
 
-        mock_csv_path = MagicMock()
-        mock_csv_path.stem = "Console"
-        mock_glob.return_value = [mock_csv_path]
+        with patch("builtins.open", mock_file), patch(
+            "rom_thumbnails_downloader.cli.Path.glob"
+        ) as mock_glob:
+            mock_csv_path = MagicMock()
+            mock_csv_path.stem = "Console"
+            mock_glob.return_value = [mock_csv_path]
 
-        result = load_csv_data(Path("/fake/data"))
+            result = load_csv_data(Path("/fake/data"), ["boxart"])
 
-        expected = {"Console": {"Game": "https://example.com/game_usa.png"}}
-        assert result == expected
+            expected = {"Console": {"Game": "https://example.com/game_usa.png"}}
+            assert result == expected
 
     @patch("rom_thumbnails_downloader.cli.Path.glob")
     @patch("builtins.open", new_callable=mock_open)
@@ -609,6 +692,84 @@ class TestCLIInterface:
         # Should handle relative paths correctly
         mock_discover.assert_called_once_with(Path("relative/path"))
 
+    @patch("rom_thumbnails_downloader.cli.tqdm")
+    @patch("rom_thumbnails_downloader.cli.load_csv_data")
+    @patch("rom_thumbnails_downloader.cli.discover_roms")
+    @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
+    @patch(
+        "sys.argv",
+        [
+            "rom_thumbnails_downloader.cli.py",
+            "/rom/path",
+            "--thumbnail-order",
+            "boxart",
+        ],
+    )
+    def test_main_custom_thumbnail_order(
+        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+    ):
+        mock_load_csv.return_value = {}
+        mock_discover.return_value = {}
+        mock_gen_commands.return_value = iter([])
+
+        mock_tqdm_instance = MagicMock()
+        mock_tqdm.return_value = mock_tqdm_instance
+        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
+        mock_tqdm_instance.__exit__.return_value = None
+
+        main()
+
+        # Verify load_csv_data was called with custom thumbnail order
+        mock_load_csv.assert_called_once()
+        call_args = mock_load_csv.call_args
+        # Second argument should be the thumbnail order
+        assert call_args[0][1] == ["boxart"]
+
+    @patch(
+        "sys.argv",
+        [
+            "rom_thumbnails_downloader.cli.py",
+            "/rom/path",
+            "--thumbnail-order",
+            "invalid",
+        ],
+    )
+    def test_main_invalid_thumbnail_order(self):
+        with pytest.raises(SystemExit):
+            main()
+
+    @patch("rom_thumbnails_downloader.cli.tqdm")
+    @patch("rom_thumbnails_downloader.cli.load_csv_data")
+    @patch("rom_thumbnails_downloader.cli.discover_roms")
+    @patch("rom_thumbnails_downloader.cli.generate_wget_commands")
+    @patch(
+        "sys.argv",
+        [
+            "rom_thumbnails_downloader.cli.py",
+            "/rom/path",
+            "--thumbnail-order",
+            "title_screen,boxart",
+        ],
+    )
+    def test_main_multiple_thumbnail_types(
+        self, mock_gen_commands, mock_discover, mock_load_csv, mock_tqdm
+    ):
+        mock_load_csv.return_value = {}
+        mock_discover.return_value = {}
+        mock_gen_commands.return_value = iter([])
+
+        mock_tqdm_instance = MagicMock()
+        mock_tqdm.return_value = mock_tqdm_instance
+        mock_tqdm_instance.__enter__.return_value = mock_tqdm_instance
+        mock_tqdm_instance.__exit__.return_value = None
+
+        main()
+
+        # Verify load_csv_data was called with multiple thumbnail types
+        mock_load_csv.assert_called_once()
+        call_args = mock_load_csv.call_args
+        assert call_args[0][1] == ["title_screen", "boxart"]
+
 
 class TestIntegration:
     def test_integration_with_fixture_data(self):
@@ -618,6 +779,8 @@ class TestIntegration:
         Test fixtures include:
         - Sega Genesis: 4 ROMs (3 in CSV, 1 not in CSV), 1 existing PNG
         - Nintendo SNES: 5 ROMs (4 in CSV, 1 not in CSV), 1 existing PNG
+
+        With current thumbnail data, expects 7 total downloads (4 SNES + 3 Genesis).
         """
         from pathlib import Path
         import subprocess
@@ -663,14 +826,23 @@ class TestIntegration:
             assert cmd.endswith('"'), f"Command should end with quote: {cmd}"
 
         # Verify specific game titles appear in the output paths
-        # Only check for Genesis games since SNES CSV data is not present in test data
-        expected_games = [
+        # Should include both Genesis and SNES games
+        expected_genesis_games = [
             "6-Pak (USA).png",
             "ATP Tour Championship Tennis (Europe).png",  # Note: uses Europe ROM but USA URL
             "688 Attack Sub (USA).png",
         ]
 
-        for expected_game in expected_games:
+        expected_snes_games = [
+            "Donkey Kong Country (USA).png",
+            "Legend of Zelda, The - A Link to the Past (USA).png",
+            "Secret of Mana (USA).png",
+            "Final Fantasy III (USA).png",
+        ]
+
+        all_expected_games = expected_genesis_games + expected_snes_games
+
+        for expected_game in all_expected_games:
             assert any(
                 expected_game in cmd for cmd in wget_commands
             ), f"Expected game '{expected_game}' not found in wget commands: {wget_commands}"
@@ -706,10 +878,57 @@ class TestIntegration:
         # Should find images for ROMs that:
         # 1. Exist in CSV data
         # 2. Don't already have PNG files
-        # Based on our fixtures, this should be exactly 3 commands (only Genesis has CSV data)
-        assert num_images == 3, f"Expected 3 images to download, got {num_images}"
+        # Based on our fixtures: 4 SNES games + 3 Genesis games = 7 total
+        assert num_images == 7, f"Expected 7 images to download, got {num_images}"
 
         # Verify actual number of wget commands matches reported number
         assert (
             len(wget_commands) == num_images
         ), f"Number of wget commands ({len(wget_commands)}) doesn't match reported number ({num_images})"
+
+    def test_integration_with_custom_thumbnail_order(self):
+        """
+        Integration test using actual fixture ROMs with custom thumbnail order.
+        """
+        from pathlib import Path
+        import subprocess
+
+        # Get the absolute path to the fixture directory
+        test_dir = Path(__file__).parent
+        project_root = test_dir.parent
+        fixture_path = test_dir / "fixtures" / "roms"
+
+        # Run the script with boxart-only order
+        result = subprocess.run(
+            [
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "rom_thumbnails_downloader",
+                str(fixture_path),
+                "--thumbnail-order",
+                "boxart",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=project_root,
+        )
+
+        # Verify the script ran successfully
+        assert result.returncode == 0, f"Script failed with stderr: {result.stderr}"
+
+        # Split output into lines for analysis
+        output_lines = result.stdout.strip().split("\n")
+
+        # Find lines that contain wget commands
+        wget_commands = [line for line in output_lines if line.startswith("wget")]
+
+        # Should still get the same number of commands since we only have boxart in our test data
+        assert (
+            len(wget_commands) == 7
+        ), f"Expected 7 wget commands with boxart order, got {len(wget_commands)}"
+
+        # Verify all URLs contain "Named_Boxarts" path
+        for cmd in wget_commands:
+            assert "Named_Boxarts" in cmd, f"Expected boxart URL but got: {cmd}"

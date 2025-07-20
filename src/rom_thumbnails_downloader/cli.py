@@ -4,6 +4,7 @@ Match Screenshots CLI script for ROM thumbnail downloading.
 Matches ROM files with corresponding box-art images from CSV data.
 """
 
+import argparse
 import csv
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Generator
@@ -12,6 +13,16 @@ from urllib.parse import urlparse, quote
 import sys
 from tqdm import tqdm
 
+
+# Mapping from user-friendly thumbnail type names to CSV column names
+THUMBNAIL_TYPE_MAPPING = {
+    "snapshot": "Named_Snaps",
+    "boxart": "Named_Boxarts",
+    "title_screen": "Named_Titles",
+}
+
+# Default thumbnail priority order
+DEFAULT_THUMBNAIL_ORDER = ["snapshot", "boxart", "title_screen"]
 
 # Mapping from ROM folder system names to CSV console names
 CONSOLE_MAPPING = {
@@ -212,16 +223,25 @@ def apply_region_preference(entries: List[Tuple[str, str]]) -> Optional[str]:
     return entries[0][1]
 
 
-def load_csv_data(data_dir: Path) -> Dict[str, Dict[str, str]]:
+def load_csv_data(
+    data_dir: Path, thumbnail_order: List[str] = None
+) -> Dict[str, Dict[str, str]]:
     """
     Load CSV data from all console CSV files in the data directory.
 
     Args:
         data_dir: Path to the data/processed/consoles directory
+        thumbnail_order: Priority order for thumbnail types (default: ["snapshot", "boxart", "title_screen"])
 
     Returns:
         Nested dictionary: {console: {clean_name: image_url}}
     """
+    if thumbnail_order is None:
+        thumbnail_order = DEFAULT_THUMBNAIL_ORDER
+
+    # Convert user-friendly names to CSV column names
+    csv_image_types = [THUMBNAIL_TYPE_MAPPING[t] for t in thumbnail_order]
+
     image_map = {}
 
     # Find all CSV files in the directory
@@ -229,7 +249,8 @@ def load_csv_data(data_dir: Path) -> Dict[str, Dict[str, str]]:
 
     for csv_file in csv_files:
         console_name = csv_file.stem
-        console_entries = defaultdict(list)
+        # Group entries by clean name and image type
+        console_entries = defaultdict(lambda: defaultdict(list))
 
         try:
             with open(csv_file, "r", encoding="utf-8") as f:
@@ -245,25 +266,71 @@ def load_csv_data(data_dir: Path) -> Dict[str, Dict[str, str]]:
                     if len(row) >= 3:
                         image_type, game_title, image_url = row[0], row[1], row[2]
 
-                        # Only process Named_Boxarts entries
-                        if image_type == "Named_Boxarts":
+                        # Process entries for the requested image types
+                        if image_type in csv_image_types:
                             clean_name = clean_title(game_title)
-                            console_entries[clean_name].append((game_title, image_url))
+                            console_entries[clean_name][image_type].append(
+                                (game_title, image_url)
+                            )
 
         except Exception:
             # Skip files that can't be read
             continue
 
-        # Apply region preference for each clean name
+        # Apply thumbnail type priority and region preference for each clean name
         console_map = {}
-        for clean_name, entries in console_entries.items():
-            preferred_url = apply_region_preference(entries)
-            if preferred_url:
-                console_map[clean_name] = preferred_url
+        for clean_name, type_entries in console_entries.items():
+            # Try each image type in priority order
+            selected_url = None
+            for csv_image_type in csv_image_types:
+                if csv_image_type in type_entries and type_entries[csv_image_type]:
+                    # Apply region preference within this image type
+                    selected_url = apply_region_preference(type_entries[csv_image_type])
+                    if selected_url:
+                        break
+
+            if selected_url:
+                console_map[clean_name] = selected_url
 
         image_map[console_name] = console_map
 
     return image_map
+
+
+def validate_thumbnail_order(order_string: str) -> List[str]:
+    """
+    Validate and parse thumbnail order string.
+
+    Args:
+        order_string: Comma-separated thumbnail types
+
+    Returns:
+        List of validated thumbnail types
+
+    Raises:
+        ValueError: If any thumbnail type is invalid
+    """
+    if not order_string.strip():
+        return DEFAULT_THUMBNAIL_ORDER
+
+    types = [t.strip() for t in order_string.split(",")]
+    valid_types = set(THUMBNAIL_TYPE_MAPPING.keys())
+
+    for t in types:
+        if t not in valid_types:
+            raise ValueError(
+                f"Invalid thumbnail type '{t}'. Valid types: {', '.join(sorted(valid_types))}"
+            )
+
+    # Remove duplicates while preserving order
+    seen = set()
+    result = []
+    for t in types:
+        if t not in seen:
+            result.append(t)
+            seen.add(t)
+
+    return result
 
 
 def discover_roms(rom_root: Path) -> Dict[str, Dict[str, Path]]:
@@ -374,40 +441,68 @@ def generate_wget_commands(
 
 def main() -> None:
     """
-    Main CLI entry point for the match_screenshots script.
-
-    Usage: python match_screenshots.py /path/to/rom_root
+    Main CLI entry point for the ROM thumbnails downloader.
     """
-    if len(sys.argv) != 2:
-        print("Usage: python match_screenshots.py /path/to/rom_root", file=sys.stderr)
+    parser = argparse.ArgumentParser(
+        description="Download box art images for your ROM collection from libretro-thumbnails",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Thumbnail types:
+  snapshot      In-game snapshots, aka gameplay screenshots
+  boxart        Scans of the boxes or covers of games
+  title_screen  Images of the game's introductory title screen
+
+Examples:
+  %(prog)s /path/to/roms
+  %(prog)s /path/to/roms --thumbnail-order boxart
+  %(prog)s /path/to/roms --thumbnail-order title_screen,boxart
+        """,
+    )
+
+    parser.add_argument(
+        "rom_path", type=Path, help="Path to the ROM collection directory"
+    )
+
+    parser.add_argument(
+        "--thumbnail-order",
+        default=",".join(DEFAULT_THUMBNAIL_ORDER),
+        help=f"Priority order for thumbnail types (default: {','.join(DEFAULT_THUMBNAIL_ORDER)}). "
+        "Specify 1-3 comma-separated values from: {snapshot, boxart, title_screen}",
+    )
+
+    try:
+        args = parser.parse_args()
+
+        # Validate thumbnail order
+        thumbnail_order = validate_thumbnail_order(args.thumbnail_order)
+
+        # Define the data directory relative to the package location
+        package_dir = Path(__file__).parent
+        project_root = package_dir.parent.parent
+        data_dir = project_root / "data" / "processed" / "consoles"
+
+        print("Loading CSV data...")
+        image_map = load_csv_data(data_dir, thumbnail_order)
+
+        print("Discovering ROM files...")
+        rom_map = discover_roms(args.rom_path)
+
+        print("Generating wget commands...")
+        commands = list(generate_wget_commands(image_map, rom_map))
+
+        if not commands:
+            print("No matching images found for ROMs.")
+            return
+
+        print(f"Found {len(commands)} images to download:")
+
+        # Display progress bar while printing commands
+        for command in tqdm(commands, desc="Processing commands"):
+            print(command)
+
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-
-    rom_root = Path(sys.argv[1])
-
-    # Define the data directory relative to the package location
-    # Go up from src/rom_thumbnails_downloader to project root, then to data
-    package_dir = Path(__file__).parent
-    project_root = package_dir.parent.parent
-    data_dir = project_root / "data" / "processed" / "consoles"
-
-    print("Loading CSV data...")
-    image_map = load_csv_data(data_dir)
-
-    print("Discovering ROM files...")
-    rom_map = discover_roms(rom_root)
-
-    print("Generating wget commands...")
-    commands = list(generate_wget_commands(image_map, rom_map))
-
-    if not commands:
-        print("No matching images found for ROMs.")
-        return
-
-    print(f"Found {len(commands)} images to download:")
-
-    # Display progress bar while printing commands
-    for command in tqdm(commands, desc="Processing commands"):
-        print(command)
 
 
 if __name__ == "__main__":
