@@ -14,6 +14,120 @@ import sys
 from tqdm import tqdm
 
 
+# Mapping from ROM folder system names to CSV console names
+CONSOLE_MAPPING = {
+    '3do': 'The_3DO_Company_-_3DO',
+    'amiga': 'Commodore_-_Amiga',
+    'amiga1200': 'Commodore_-_Amiga',
+    'amiga600': 'Commodore_-_Amiga',
+    'amigacd32': 'Commodore_-_CD32',
+    'amstradcpc': 'Amstrad_-_CPC',
+    'arcade': 'MAME',
+    'arcadia': 'Emerson_-_Arcadia_2001',
+    'arduboy': 'Arduboy_Inc_-_Arduboy',
+    'atari2600': 'Atari_-_2600',
+    'atari5200': 'Atari_-_5200',
+    'atari7800': 'Atari_-_7800',
+    'atari800': 'Atari_-_8-bit',
+    'atarijaguar': 'Atari_-_Jaguar',
+    'atarilynx': 'Atari_-_Lynx',
+    'atarist': 'Atari_-_ST',
+    'atarixe': 'Atari_-_8-bit',
+    'atomiswave': 'Atomiswave',
+    'c64': 'Commodore_-_64',
+    'cdtv': 'Commodore_-_CDTV',
+    'channelf': 'Fairchild_-_Channel_F',
+    'colecovision': 'Coleco_-_ColecoVision',
+    'cps': 'FBNeo_-_Arcade_Games',
+    'cps1': 'FBNeo_-_Arcade_Games',
+    'cps2': 'FBNeo_-_Arcade_Games',
+    'cps3': 'FBNeo_-_Arcade_Games',
+    'dreamcast': 'Sega_-_Dreamcast',
+    'famicom': 'Nintendo_-_Nintendo_Entertainment_System',
+    'fba': 'FBNeo_-_Arcade_Games',
+    'fbneo': 'FBNeo_-_Arcade_Games',
+    'fds': 'Nintendo_-_Family_Computer_Disk_System',
+    'gamegear': 'Sega_-_Game_Gear',
+    'gb': 'Nintendo_-_Game_Boy',
+    'gba': 'Nintendo_-_Game_Boy_Advance',
+    'gbc': 'Nintendo_-_Game_Boy_Color',
+    'gc': 'Nintendo_-_GameCube',
+    'genesis': 'Sega_-_Mega_Drive_-_Genesis',
+    'gx4000': 'Amstrad_-_GX4000',
+    'intellivision': 'Mattel_-_Intellivision',
+    'mame': 'MAME',
+    'mark3': 'Sega_-_Master_System_-_Mark_III',
+    'mastersystem': 'Sega_-_Master_System_-_Mark_III',
+    'megacd': 'Sega_-_Mega-CD_-_Sega_CD',
+    'megacdjp': 'Sega_-_Mega-CD_-_Sega_CD',
+    'megadrive': 'Sega_-_Mega_Drive_-_Genesis',
+    'megadrivejp': 'Sega_-_Mega_Drive_-_Genesis',
+    'msx': 'Microsoft_-_MSX',
+    'msx1': 'Microsoft_-_MSX',
+    'msx2': 'Microsoft_-_MSX2',
+    'n3ds': 'Nintendo_-_Nintendo_3DS',
+    'n64': 'Nintendo_-_Nintendo_64',
+    'n64dd': 'Nintendo_-_Nintendo_64DD',
+    'naomi': 'Sega_-_Naomi',
+    'naomi2': 'Sega_-_Naomi_2',
+    'naomigd': 'Sega_-_Naomi',
+    'nds': 'Nintendo_-_Nintendo_DS',
+    'neogeo': 'SNK_-_Neo_Geo',
+    'neogeocd': 'SNK_-_Neo_Geo_CD',
+    'neogeocdjp': 'SNK_-_Neo_Geo_CD',
+    'nes': 'Nintendo_-_Nintendo_Entertainment_System',
+    'ngp': 'SNK_-_Neo_Geo_Pocket',
+    'ngpc': 'SNK_-_Neo_Geo_Pocket_Color',
+    'odyssey2': 'Magnavox_-_Odyssey2',
+    'pc88': 'NEC_-_PC-8001_-_PC-8801',
+    'pc98': 'NEC_-_PC-98',
+    'pcengine': 'NEC_-_PC_Engine_-_TurboGrafx_16',
+    'pcenginecd': 'NEC_-_PC_Engine_CD_-_TurboGrafx-CD',
+    'pcfx': 'NEC_-_PC-FX',
+    'plus4': 'Commodore_-_Plus-4',
+    'pokemini': 'Nintendo_-_Pokemon_Mini',
+    'ps2': 'Sony_-_PlayStation_2',
+    'ps3': 'Sony_-_PlayStation_3',
+    'ps4': 'Sony_-_PlayStation_4',
+    'psp': 'Sony_-_PlayStation_Portable',
+    'psvita': 'Sony_-_PlayStation_Vita',
+    'psx': 'Sony_-_PlayStation',
+    'pv1000': 'Casio_-_PV-1000',
+    'satellaview': 'Nintendo_-_Satellaview',
+    'saturn': 'Sega_-_Saturn',
+    'saturnjp': 'Sega_-_Saturn',
+    'scummvm': 'ScummVM',
+    'scv': 'Epoch_-_Super_Cassette_Vision',
+    'sega32x': 'Sega_-_32X',
+    'sega32xjp': 'Sega_-_32X',
+    'sega32xna': 'Sega_-_32X',
+    'segacd': 'Sega_-_Mega-CD_-_Sega_CD',
+    'sfc': 'Nintendo_-_Super_Nintendo_Entertainment_System',
+    'sg-1000': 'Sega_-_SG-1000',
+    'snes': 'Nintendo_-_Super_Nintendo_Entertainment_System',
+    'snesna': 'Nintendo_-_Super_Nintendo_Entertainment_System',
+    'sufami': 'Nintendo_-_Sufami_Turbo',
+    'supergrafx': 'NEC_-_PC_Engine_SuperGrafx',
+    'supracan': 'Funtech_-_Super_Acan',
+    'tg16': 'NEC_-_PC_Engine_-_TurboGrafx_16',
+    'tg-cd': 'NEC_-_PC_Engine_CD_-_TurboGrafx-CD',
+    'vectrex': 'GCE_-_Vectrex',
+    'vic20': 'Commodore_-_VIC-20',
+    'videopac': 'Philips_-_Videopac',
+    'virtualboy': 'Nintendo_-_Virtual_Boy',
+    'wii': 'Nintendo_-_Wii',
+    'wiiu': 'Nintendo_-_Wii_U',
+    'wonderswan': 'Bandai_-_WonderSwan',
+    'wonderswancolor': 'Bandai_-_WonderSwan_Color',
+    'x1': 'Sharp_-_X1',
+    'x68000': 'Sharp_-_X68000',
+    'xbox': 'Microsoft_-_Xbox',
+    'xbox360': 'Microsoft_-_Xbox_360',
+    'zx81': 'Sinclair_-_ZX_81',
+    'zxspectrum': 'Sinclair_-_ZX_Spectrum',
+}
+
+
 def clean_title(title: str) -> str:
     """
     Clean a game title by removing file extension and parenthesised tokens.
@@ -179,7 +293,10 @@ def discover_roms(rom_root: Path) -> Dict[str, Dict[str, Path]]:
         if not rom_file.is_file():
             continue
         
-        console_name = rom_file.parent.name
+        raw_console_name = rom_file.parent.name
+        # Map the raw console name to the CSV console name
+        console_name = CONSOLE_MAPPING.get(raw_console_name, raw_console_name)
+        
         clean_name = clean_title(rom_file.name)
         
         # Skip files that result in empty clean names
@@ -191,6 +308,11 @@ def discover_roms(rom_root: Path) -> Dict[str, Dict[str, Path]]:
             print(f"Warning: Duplicate ROM found for '{clean_name}' in console '{console_name}'. "
                   f"Keeping first entry: {rom_map[console_name][clean_name]}")
             continue
+        
+        # Warn if console mapping was not found
+        if raw_console_name not in CONSOLE_MAPPING:
+            print(f"Warning: No console mapping found for ROM folder '{raw_console_name}'. "
+                  f"Using original name '{raw_console_name}' for matching.")
         
         rom_map[console_name][clean_name] = rom_file.absolute()
     
