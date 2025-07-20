@@ -1,5 +1,7 @@
 # ROM Thumbnails Downloader
 
+![Tests](https://github.com/vitorbaptista/rom-thumbnails-downloader/actions/workflows/tests.yml/badge.svg)
+
 **Automatically download thumbnail images for your ROM collection**
 
 This tool scans your ROM directories and generates download commands for matching thumbnail images from the [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails) project. Choose from box art, title screens, or gameplay snapshots to enhance your retro gaming collection.

@@ -1,4 +1,4 @@
-.PHONY: install test data
+.PHONY: install test lint data
 
 install:
 	uv sync
@@ -6,6 +6,9 @@ install:
 
 test:
 	uv run pytest
+
+lint:
+	uv run pre-commit run --all-files
 
 data: data/processed/consoles.csv
 	cat data/processed/consoles.csv | while read console; do \

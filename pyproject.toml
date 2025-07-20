@@ -11,7 +11,7 @@ license = {text = "MIT"}
 authors = [
     {name = "ROM Thumbnails Downloader Contributors"},
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "tqdm>=4.67.1",
 ]
